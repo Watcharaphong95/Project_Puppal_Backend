@@ -14,6 +14,22 @@ router.get("/", (req, res) => {
     })
 })
 
+router.get("/:email", (req, res) => {
+    let email = req.params.email;
+    let sql = "SELECT * FROM general WHERE user_email = ?";
+    sql = mysql.format(sql, [email]);
+    conn.query(sql, (err, result) => {
+        if(err) throw err;
+        if(result.length > 0) {
+            res.status(200).json(result[0]);
+        } else {
+            res.status(404).json({ message: "User not found" });
+        }
+    })
+
+
+})
+
 router.post("/", (req, res) => {
     let general: GeneralPost = req.body;
     let sql = "INSERT INTO general (user_email, username, name, surname, phone, address, lat, lng, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";

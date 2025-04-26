@@ -29,3 +29,19 @@ router.post("/", (req, res) => {
     res.status(201).json({ message: "insert success" });
   });
 });
+
+router.get("/:email", (req, res) => {
+    let email = req.params.email;
+    let sql = "SELECT * FROM user WHERE email = ?";
+    sql = mysql.format(sql, [email]);
+    conn.query(sql, (err, result) => {
+        if(err) throw err;
+        if(result.length > 0) {
+            res.status(200).json(result[0]);
+        } else {
+            res.status(404).json({ message: "User not found" });
+        }
+    })
+
+
+})

@@ -5,10 +5,12 @@
 //   const doctorPost = Convert.toDoctorPost(json);
 
 export interface DoctorPost {
-    name:     string;
-    surname:  string;
-    careerNo: string;
-    image:    string;
+    user_email: string;
+    name:       string;
+    surname:    string;
+    careerNo:   string;
+    special:    string;
+    image:      string;
 }
 
 // Converts JSON strings to/from your types

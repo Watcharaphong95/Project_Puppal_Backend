@@ -4,6 +4,7 @@ import { UserData } from "../model/userPost";
 import mysql from "mysql";
 import { GeneralPost } from "../model/generalPost";
 import { ClinicPost } from "../model/clinicPost";
+import { DoctorPost } from "../model/doctorPost";
 
 export const router = express.Router();
 
@@ -28,3 +29,21 @@ router.get("/:careerNo", (req, res) => {
     }
   });
 });
+
+router.post("/", (req, res) => {
+    let doctor: DoctorPost = req.body;
+    let sql = "INSERT INTO doctor (user_email, name, surname, careerNo, special, image) VALUES (?, ?, ?, ?, ?, ?)";
+    sql = mysql.format(sql, [
+        doctor.user_email,
+        doctor.name,
+        doctor.surname,
+        doctor.careerNo,
+        doctor.special,
+        doctor.image
+    ])
+
+    conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(201).json({ message: "insert success" });
+    })
+})

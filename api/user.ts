@@ -20,7 +20,7 @@ router.get("/:email", (req, res) => {
   conn.query(sql, (err, result) => {
     if (err) throw err;
     if (result.length > 0) {
-      res.status(200).json(result);
+      res.status(200).json(result[0]);
     } else {
       res.status(404).json({ message: "User not found" });
     }

@@ -1,6 +1,5 @@
 import express from "express";
 import { conn } from "../dbconnect";
-import { UserData } from "../model/userPost";
 import mysql from "mysql";
 import { GeneralPost } from "../model/generalPost";
 

@@ -17,6 +17,18 @@ router.get("/:email", (req, res) => {
     })
 })
 
+router.get("/data/:id", (req, res) => {
+  let id = req.params.id;
+    let sql = "SELECT * FROM dog WHERE dogId = ?";
+    sql = mysql.format(sql, [
+      id
+    ])
+    conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json(result);
+    })
+})
+
 router.post("/", (req, res) => {
   let dog: DogPost = req.body;
   

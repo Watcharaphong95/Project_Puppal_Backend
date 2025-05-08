@@ -5,8 +5,12 @@ import { InjectionRecordPost } from "../model/dogInjectionRecordPost";
 
 export const router = express.Router();
 
-router.get("/", (req, res) => {
-    let sql = "SELECT rid, dog_Id, clinicName, vaccineType, DATE_FORMAT(date, '%d-%m-%Y') AS date FROM injectionRecord"
+router.get("/:id", (req, res) => {
+    let id = req.params.id;
+    let sql = "SELECT rid, dog_Id, clinicName, vaccineType, DATE_FORMAT(date, '%d-%m-%Y') AS date FROM injectionRecord WHERE dog_id = ?"
+    sql = mysql.format(sql, [
+      id
+    ])
     conn.query(sql, (err, result) => {
         if (err) throw err;
 

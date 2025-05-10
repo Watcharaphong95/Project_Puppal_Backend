@@ -7,7 +7,7 @@ export const router = express.Router();
 
 router.get("/:id", (req, res) => {
     let id = req.params.id;
-    let sql = "SELECT rid, dog_Id, clinicName, vaccineType, DATE_FORMAT(date, '%d-%m-%Y') AS date FROM injectionRecord WHERE dog_id = ?"
+    let sql = "SELECT * FROM injectionRecord WHERE dog_id = ?"
     sql = mysql.format(sql, [
       id
     ])

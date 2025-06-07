@@ -15,7 +15,7 @@ router.get("/", (req, res) => {
 
 router.get("/:email", (req, res) => {
   let email = req.params.email;
-  let sql = "SELECT * FROM user WHERE email = ?";
+  let sql = "SELECT email, general, clinic FROM user WHERE email = ?";
   sql = mysql.format(sql, [email]);
   conn.query(sql, (err, result) => {
     if (err) throw err;

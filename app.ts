@@ -6,6 +6,7 @@ import { router as clinic} from "./api/clinic";
 import { router as doctor} from "./api/doctor";
 import { router as dog} from "./api/dog";
 import { router as injectionRecord} from "./api/dogInjectionRecord";
+import { router as reserve} from "./api/reserve";
 import bodyParser from "body-parser";
 
 export const app = express();
@@ -19,3 +20,4 @@ app.use("/clinic", clinic);
 app.use("/doctor", doctor);
 app.use("/dog", dog);
 app.use("/injectionRecord", injectionRecord);
+app.use("/reserve", reserve);

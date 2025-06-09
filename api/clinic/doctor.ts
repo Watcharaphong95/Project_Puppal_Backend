@@ -1,7 +1,7 @@
 import express from "express";
-import { conn } from "../dbconnect";
+import { conn } from "../../dbconnect";
 import mysql from "mysql";
-import { DoctorPost } from "../model/doctorPost";
+import { DoctorPost } from "../../model/doctorPost";
 
 export const router = express.Router();
 
@@ -44,3 +44,4 @@ router.post("/", (req, res) => {
         res.status(201).json({ message: "insert success" });
     })
 })
+

@@ -26,20 +26,6 @@ router.post("/", (req, res) => {
 
 });
 
-// router.get("/search/:name", (req, res) => {
-//   const name = req.params.name; // รับจาก path param
-
-//   let sql = "SELECT * FROM special WHERE name = ?";
-//   sql = mysql.format(sql, [name]);
-
-//   conn.query(sql, (err, result) => {
-//     if (err) {
-//       return res.status(500).json({ message: "Database error", error: err });
-//     }
-//     res.status(200).json(result);
-//   });
-// });
-
 router.get("/search", (req, res) => {
   const name = req.query.name;
 

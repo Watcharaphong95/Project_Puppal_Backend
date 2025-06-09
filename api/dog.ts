@@ -57,3 +57,17 @@ router.post("/", (req, res) => {
     res.status(201).json({ insertId: result.insertId });
   });
 });
+
+router.get("/appointmet/:email", (req, res) => {
+  let email = req.params.email;
+    let sql = "SELECT * FROM dog WHERE dogId = ?";
+    sql = mysql.format(sql, [
+      email
+    ])
+    conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json(result);
+    })
+})
+
+

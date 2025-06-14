@@ -1,7 +1,7 @@
 import express from "express";
-import { conn } from "../../dbconnect";
+import { conn } from "../dbconnect";
 import mysql from "mysql";
-import { DoctorPost } from "../../model/doctorPost";
+import { DoctorPost } from "../model/doctorPost";
 
 export const router = express.Router();
 
@@ -29,13 +29,12 @@ router.get("/:careerNo", (req, res) => {
 
 router.post("/", (req, res) => {
     let doctor: DoctorPost = req.body;
-    let sql = "INSERT INTO doctor (user_email, name, surname, careerNo, special, image) VALUES (?, ?, ?, ?, ?, ?)";
+    let sql = "INSERT INTO doctor (user_email, name, surname, careerNo,  image) VALUES ( ?, ?, ?, ?, ?)";
     sql = mysql.format(sql, [
         doctor.user_email,
         doctor.name,
         doctor.surname,
         doctor.careerNo,
-        doctor.special,
         doctor.image
     ])
 

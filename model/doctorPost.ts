@@ -9,7 +9,6 @@ export interface DoctorPost {
     name:       string;
     surname:    string;
     careerNo:   string;
-    special:    string;
     image:      string;
 }
 

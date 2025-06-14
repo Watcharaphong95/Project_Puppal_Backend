@@ -1,7 +1,7 @@
-import { conn } from "../../dbconnect";
+import { conn } from "../dbconnect";
 import express from "express";
 import mysql from "mysql";
-import { SpecialPost } from "../../model/specialPost";
+import { SpecialPost } from "../model/specialPost";
 
 export const router = express.Router();
 

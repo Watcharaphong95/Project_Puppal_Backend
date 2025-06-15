@@ -2,6 +2,7 @@ import express from "express";
 import { conn } from "../dbconnect";
 import mysql from "mysql";
 import { GeneralPost } from "../model/generalPost";
+import { GeneralEditProfilePost } from "../model/generalProfileUpdate";
 
 export const router = express.Router();
 
@@ -60,5 +61,25 @@ router.post("/", (req, res) => {
   conn.query(sql, (err, result) => {
     if (err) throw err;
     res.status(201).json({ message: "insert success" });
+  });
+});
+
+router.put("/", (req, res) => {
+  let general: GeneralEditProfilePost = req.body;
+  let sql =
+    "UPDATE general SET username = ?, name = ?, surname = ?, phone = ?, address = ?, image = ? WHERE user_email = ?";
+  sql = mysql.format(sql, [
+    general.username,
+    general.name,
+    general.surname,
+    general.phone,
+    general.address,
+    general.image,
+    general.user_email,
+  ]);
+
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(201).json({ message: "update success" });
   });
 });

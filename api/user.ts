@@ -2,6 +2,10 @@ import express from "express";
 import { conn } from "../dbconnect";
 import { UserData } from "../model/userPost";
 import mysql from "mysql";
+import { log } from "console";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+import { OtpPost } from "../model/otpPost";
 
 export const router = express.Router();
 
@@ -21,6 +25,24 @@ router.get("/:email", (req, res) => {
     if (err) throw err;
     if (result.length > 0) {
       res.status(200).json(result[0]);
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  });
+});
+
+router.get("/checkpass/:email", (req, res) => {
+  let email = req.params.email;
+  let sql = "SELECT password FROM user WHERE email = ?";
+  sql = mysql.format(sql, [email]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    if (result.length > 0) {
+      if (result[0].password != null) {
+        res.status(200).json({ message: "User valid" });
+      } else {
+        res.status(400).json({ message: "User use google to register" });
+      }
     } else {
       res.status(404).json({ message: "User not found" });
     }
@@ -57,3 +79,74 @@ router.post("/login", (req, res) => {
     }
   });
 });
+
+router.put("/password", (req, res) => {
+  let user: UserData = req.body;
+  log(user.email)
+  let sql = "UPDATE user SET password = ? WHERE email = ?";
+  sql = mysql.format(sql, [user.password, user.email]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json({ message: "Password Update Success"});
+  });
+})
+
+router.get("/sendotp/:email", async (req, res) => {
+  const email = req.params.email;
+
+  function generateOTP(length = 6) {
+    const digits = "0123456789";
+    let otp = "";
+    for (let i = 0; i < length; i++) {
+      otp += digits[Math.floor(Math.random() * 10)];
+    }
+    return otp;
+  }
+
+  const otp = generateOTP();
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "65011212077@msu.ac.th",
+        pass: "pgwv rimh zsye nnpk",
+      },
+    });
+
+    const mailOptions = {
+      from: `"PUPPAL" <65011212077@msu.ac.th>`,
+      to: email,
+      subject: "Your OTP Code",
+      html: `<p>Your OTP code is: <b>${otp}</b></p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    let sql =
+      "INSERT INTO otp (user_email, otp , expire) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp = VALUES(otp), expire = VALUES(expire)";
+    sql = mysql.format(sql, [email, otp, expiresAt]);
+    conn.query(sql, (err, result) => {
+      if (err) throw err;
+      res.status(200).json({ message: "OTP sent successfully" });
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+});
+
+router.post('/verifyotp', (req, res) =>   {
+  let checkOtp : OtpPost = req.body;
+  let sql = 'SELECT * FROM otp WHERE user_email = ?'
+  sql = mysql.format(sql, [checkOtp.user_email])
+  conn.query(sql, (err, result) => {
+      if (err) throw err;
+      let trueOtp: OtpPost = result[0]
+      if(checkOtp.otp == trueOtp.otp && new Date(trueOtp.expire) > new Date(checkOtp.expire)){
+        res.status(200).json({ message: "OTP verify success" });
+      } else {
+        res.status(400).json({ message: "OTP verify failed" });
+      }
+    });
+})

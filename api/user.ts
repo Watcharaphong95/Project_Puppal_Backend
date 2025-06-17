@@ -31,6 +31,21 @@ router.get("/:email", (req, res) => {
   });
 });
 
+router.get("/google/:email", (req, res) => {
+  let email = req.params.email;
+  let sql =
+    "SELECT email, general, clinic FROM user WHERE email = ? AND password IS NULL";
+  sql = mysql.format(sql, [email]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    if (result.length > 0) {
+      res.status(200).json(result[0]);
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  });
+});
+
 router.get("/checkpass/:email", (req, res) => {
   let email = req.params.email;
   let sql = "SELECT password FROM user WHERE email = ?";
@@ -51,14 +66,10 @@ router.get("/checkpass/:email", (req, res) => {
 
 router.post("/", (req, res) => {
   let user: UserData = req.body;
+  const password = user.password === "" ? null : user.password;
   let sql =
     "INSERT INTO user (email, password, general, clinic) VALUES (?, ?, ?, ?)";
-  sql = mysql.format(sql, [
-    user.email,
-    user.password,
-    user.general,
-    user.clinic,
-  ]);
+  sql = mysql.format(sql, [user.email, password, user.general, user.clinic]);
 
   conn.query(sql, (err, result) => {
     if (err) throw err;
@@ -82,14 +93,14 @@ router.post("/login", (req, res) => {
 
 router.put("/password", (req, res) => {
   let user: UserData = req.body;
-  log(user.email)
+  log(user.email);
   let sql = "UPDATE user SET password = ? WHERE email = ?";
   sql = mysql.format(sql, [user.password, user.email]);
   conn.query(sql, (err, result) => {
     if (err) throw err;
-    res.status(200).json({ message: "Password Update Success"});
+    res.status(200).json({ message: "Password Update Success" });
   });
-})
+});
 
 router.get("/sendotp/:email", async (req, res) => {
   const email = req.params.email;
@@ -136,17 +147,25 @@ router.get("/sendotp/:email", async (req, res) => {
   }
 });
 
-router.post('/verifyotp', (req, res) =>   {
-  let checkOtp : OtpPost = req.body;
-  let sql = 'SELECT * FROM otp WHERE user_email = ?'
-  sql = mysql.format(sql, [checkOtp.user_email])
+router.post("/verifyotp", (req, res) => {
+  let checkOtp: OtpPost = req.body;
+  let sql = "SELECT * FROM otp WHERE user_email = ?";
+  sql = mysql.format(sql, [checkOtp.user_email]);
   conn.query(sql, (err, result) => {
-      if (err) throw err;
-      let trueOtp: OtpPost = result[0]
-      if(checkOtp.otp == trueOtp.otp && new Date(trueOtp.expire) > new Date(checkOtp.expire)){
+    if (err) throw err;
+    let trueOtp: OtpPost = result[0];
+    if (
+      checkOtp.otp == trueOtp.otp &&
+      new Date(trueOtp.expire) > new Date(checkOtp.expire)
+    ) {
+      let sql2 = "DELETE FROM otp WHERE user_email = ?";
+      sql2 = mysql.format(sql2, [checkOtp.user_email]);
+      conn.query(sql2, (err, result) => {
+        if (err) throw err;
         res.status(200).json({ message: "OTP verify success" });
-      } else {
-        res.status(400).json({ message: "OTP verify failed" });
-      }
-    });
-})
+      });
+    } else {
+      res.status(400).json({ message: "OTP verify failed" });
+    }
+  });
+});

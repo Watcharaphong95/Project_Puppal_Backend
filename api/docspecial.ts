@@ -22,3 +22,100 @@ router.post("/", (req, res) => {
     res.status(201).json({ message: "insert success" });
   });
 });
+
+router.get("/search_doctorID/:id", (req, res) => {
+  const doctorId = req.params.id;
+
+  let sql = `
+    SELECT docspecialID,s.name AS specialName,specialID
+    FROM docspecial ds
+    JOIN special s ON ds.specialID = s.special_id
+    WHERE ds.doctorID = ?
+  `;
+  let formattedSql = mysql.format(sql, [doctorId]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    res.status(200).json(result);
+  });
+});
+
+router.get("/search_namedocspecial/:name", (req, res) => {
+  const name = req.params.name;
+
+  let sql = `
+    SELECT * FROM docspecial ds
+    JOIN special s ON ds.specialID = s.special_id 
+  `;
+  let formattedSql = mysql.format(sql, [name]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    res.status(200).json(result);
+  });
+});
+
+router.delete("/:docspecialID", (req, res) => {
+  const docspecialID = req.params.docspecialID;
+
+  let sql = "DELETE FROM docspecial WHERE docspecialID = ? ";
+  let formattedSql = mysql.format(sql, [docspecialID]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    res.status(200).json({ message: "Special deleted successfully" });
+  });
+})
+
+router.get("/check/:doctorId/:specialId", (req, res) => {
+  const doctorId = req.params.doctorId;
+  const specialId = req.params.specialId;
+
+  let sql = "SELECT 1 FROM docspecial WHERE doctorID = ? AND specialID = ?";
+  let formattedSql = mysql.format(sql, [doctorId, specialId]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    const exists = result.length > 0;
+    res.status(200).json({ exists });
+  });
+});
+
+router.get("/:doctorID", (req, res) => {
+  const doctorID = req.params.doctorID;
+
+  let sql = "SELECT * FROM docspecial WHERE doctorID = ?";
+  let formattedSql = mysql.format(sql, [doctorID]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    if (result.length > 0) {
+      res.status(200).json(result);
+    } else {
+      res.status(404).json({ message: "DocSpecial not found" });
+    }
+  });
+});
+
+// router.delete("/docspecial/delete/:doctorId/:specialId", (req, res) => {
+//   const { doctorId, specialId } = req.params;
+//   const sql = "DELETE FROM docspecial WHERE doctorID = ? AND specialID = ?";
+//   const formattedSql = mysql.format(sql, [doctorId, specialId]);
+
+//   conn.query(formattedSql, (err, result) => {
+//     if (err) {
+//       return res.status(500).json({ message: "Database error", error: err });
+//     }
+//     res.status(200).json({ message: "Deleted successfully" });
+//   });
+// });

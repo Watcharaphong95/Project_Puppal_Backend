@@ -1,6 +1,7 @@
 import express from "express"
 import { conn } from "../dbconnect";
 import mysql from "mysql";
+import { log } from "console";
 
 export const router = express.Router();
 
@@ -61,6 +62,7 @@ router.get("/search_namedocspecial/:name", (req, res) => {
 
 router.delete("/:docspecialID", (req, res) => {
   const docspecialID = req.params.docspecialID;
+  log(docspecialID);
 
   let sql = "DELETE FROM docspecial WHERE docspecialID = ? ";
   let formattedSql = mysql.format(sql, [docspecialID]);
@@ -89,11 +91,21 @@ router.get("/check/:doctorId/:specialId", (req, res) => {
   });
 });
 
-router.get("/:doctorID", (req, res) => {
-  const doctorID = req.params.doctorID;
 
-  let sql = "SELECT * FROM docspecial WHERE doctorID = ?";
-  let formattedSql = mysql.format(sql, [doctorID]);
+router.get("/getnamespecial/:name", (req, res) => {
+  const name = req.params.name;
+  log(name);
+  let sql = `
+  SELECT 
+    special.name, 
+    docspecial.docspecialID AS docspecialId, 
+    docspecial.doctorID AS doctorId 
+  FROM special 
+  JOIN docspecial ON special.special_id = docspecial.specialID 
+  WHERE special.name = ?
+`;
+
+  let formattedSql = mysql.format(sql, [name]);
 
   conn.query(formattedSql, (err, result) => {
     if (err) {
@@ -106,16 +118,3 @@ router.get("/:doctorID", (req, res) => {
     }
   });
 });
-
-// router.delete("/docspecial/delete/:doctorId/:specialId", (req, res) => {
-//   const { doctorId, specialId } = req.params;
-//   const sql = "DELETE FROM docspecial WHERE doctorID = ? AND specialID = ?";
-//   const formattedSql = mysql.format(sql, [doctorId, specialId]);
-
-//   conn.query(formattedSql, (err, result) => {
-//     if (err) {
-//       return res.status(500).json({ message: "Database error", error: err });
-//     }
-//     res.status(200).json({ message: "Deleted successfully" });
-//   });
-// });

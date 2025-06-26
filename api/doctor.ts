@@ -68,8 +68,8 @@ router.get("/searche/:email/:name", (req, res) => {
   const name = req.params.name;
   console.log(email, name);
 
-  let sql = "SELECT * FROM doctor WHERE user_email = ? AND name = ?";
-  sql = mysql.format(sql, [email, name]);
+  let sql = "SELECT * FROM doctor WHERE user_email = ? AND name LIKE ?";
+  sql = mysql.format(sql, [email, `%${name}%`]); 
 
   conn.query(sql, (err, result) => {
     if (err) {
@@ -79,6 +79,7 @@ router.get("/searche/:email/:name", (req, res) => {
     res.status(200).json(result);
   });
 });
+
 
 router.put("/editprofile/:careerNo",(req, res) => {
   const careerNo = req.params.careerNo;

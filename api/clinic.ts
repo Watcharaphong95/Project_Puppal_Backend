@@ -49,3 +49,16 @@ router.post("/", (req, res) => {
     res.status(201).json({ message: "insert success" });
   });
 });
+
+router.get("/clinic/:email",(req,res)=>{
+  let email = req.params.email;
+  let sql = "SELECT * FROM clinic WHERE user_email = ?"
+  sql = mysql.format(sql,[email]);
+   conn.query(sql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    res.status(200).json(result);
+  });
+})

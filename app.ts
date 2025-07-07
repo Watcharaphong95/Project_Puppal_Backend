@@ -9,6 +9,9 @@ import { router as injectionRecord} from "./api/dogInjectionRecord";
 import { router as special } from "./api/special";
 import { router as reserve} from "./api/reserve";
 import { router as doctorspecial } from "./api/docspecial";
+import { router as vaccine } from "./api/vaccine";
+import { router as appointment } from "./api/appointment";
+import { router as cilnicinjectionRecord} from "./api/clinicinjectionRecord"
 import bodyParser from "body-parser";
 
 export const app = express();
@@ -25,3 +28,6 @@ app.use("/injectionRecord", injectionRecord);
 app.use("/special", special);
 app.use("/reserve", reserve);
 app.use("/docspecial", doctorspecial);
+app.use("/vaccine", vaccine);
+app.use("/appointment", appointment);
+app.use("/clinicinjectionRecord", cilnicinjectionRecord)

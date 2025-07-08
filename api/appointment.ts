@@ -26,18 +26,55 @@ router.get("/", (req, res) => {
 });
 
 
+// router.post("/", (req, res) => {
+//   let app: AppointmentPost = req.body;
+//   let dateTemp = new Date(app.date);
+//   dateTemp.setMonth(dateTemp.getMonth() + app.month);
+
+//   const year = dateTemp.getFullYear();
+//   const month = String(dateTemp.getMonth() + 1).padStart(2, "0");
+//   const day = String(dateTemp.getDate()).padStart(2, "0");
+//   const formattedDate = `${year}-${month}-${day}`;
+  
+
+//   let sql =
+//     "INSERT INTO appointment (dogId, general_user_email, vaccine, date) VALUES (?,?,?,?)";
+//   sql = mysql.format(sql, [
+//     app.dogId,
+//     app.general_user_email,
+//     app.vaccine,
+//     formattedDate,
+//   ]);
+
+//   conn.query(sql, (err, result) => {
+//     if (err) {
+//       res.status(404).json({ message: err.sqlMessage });
+//     } else {
+//       res.status(201).json({ insertId: result.insertId });
+//     }
+//   });
+// });
+
 router.post("/", (req, res) => {
-  let app: AppointmentPost = req.body;
+  let app = req.body;
+
+ 
+
+  const monthToAdd = typeof app.month === "number" ? app.month : 0;
+
   let dateTemp = new Date(app.date);
-  dateTemp.setMonth(dateTemp.getMonth() + app.month);
+  dateTemp.setMonth(dateTemp.getMonth() + monthToAdd);
 
   const year = dateTemp.getFullYear();
   const month = String(dateTemp.getMonth() + 1).padStart(2, "0");
   const day = String(dateTemp.getDate()).padStart(2, "0");
   const formattedDate = `${year}-${month}-${day}`;
 
+  // Log ข้อมูลเพื่อ debug
+  console.log("Inserting appointment with date:", formattedDate);
+
   let sql =
-    "INSERT INTO appointment (dogId, general_user_email, vaccine, date) VALUES (?,?,?,?)";
+    "INSERT INTO appointment (dogId, general_user_email, vaccine, date) VALUES (?, ?, ?, ?)";
   sql = mysql.format(sql, [
     app.dogId,
     app.general_user_email,
@@ -47,12 +84,14 @@ router.post("/", (req, res) => {
 
   conn.query(sql, (err, result) => {
     if (err) {
-      res.status(404).json({ message: err.sqlMessage });
+      console.error("SQL Error:", err.sqlMessage);
+      res.status(500).json({ message: err.sqlMessage });
     } else {
       res.status(201).json({ insertId: result.insertId });
     }
   });
 });
+
 
 router.put("/:aid", (req, res) => {
   let aid = req.params.aid;

@@ -25,6 +25,7 @@ router.get("/", (req, res) => {
   });
 });
 
+
 router.post("/", (req, res) => {
   let app: AppointmentPost = req.body;
   let dateTemp = new Date(app.date);
@@ -52,3 +53,16 @@ router.post("/", (req, res) => {
     }
   });
 });
+
+router.put("/:aid", (req, res) => {
+  let aid = req.params.aid;
+  let sql = "UPDATE appointment SET status = ? WHERE aid = ?"
+  sql = mysql.format(sql, [1, aid])
+  conn.query(sql, (err, result) => {
+    if (err) {
+      res.status(404).json({ message: err.sqlMessage });
+    } else {
+      res.status(201).json({ affected_Rows: result.affectedRows });
+    }
+  });
+})

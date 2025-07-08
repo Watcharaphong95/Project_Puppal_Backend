@@ -116,8 +116,8 @@ router.post("/slot", (req, res) => {
     if (result.length > 0) {
       let clinic: ClinicSlotGet = result[0];
       let sql2 =
-        "SELECT TIME(date) as time FROM reserve WHERE clinic_email = ? AND DATE(date) = ? GROUP BY TIME(date) HAVING COUNT(*) >= ?";
-      sql2 = mysql.format(sql2, [input.email, inputDate, clinic.numPerTime]);
+        "SELECT TIME(date) as time FROM reserve WHERE clinic_email = ? AND status != ? AND DATE(date) = ? GROUP BY TIME(date) HAVING COUNT(*) >= ?";
+      sql2 = mysql.format(sql2, [input.email, 0, inputDate, clinic.numPerTime]);
       conn.query(sql2, (err, result) => {
         if (err) throw err;
 

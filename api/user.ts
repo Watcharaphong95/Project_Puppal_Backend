@@ -91,6 +91,27 @@ router.post("/login", (req, res) => {
   });
 });
 
+router.put("/deleteGeneral/:email", (req, res) => {
+  let email = req.params.email;
+  let sql = "UPDATE user SET general = ? WHERE email = ?";
+  sql = mysql.format(sql, [null, email]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json({ message: "general type Update Success" });
+  });
+});
+
+router.delete("/:email", (req, res) => {
+  let email = req.params.email;
+  let sql = "DELETE FROM user WHERE user_email = ?";
+  sql = mysql.format(sql, [email]);
+
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json({ message: "delete success" });
+  });
+});
+
 router.put("/password", (req, res) => {
   let user: UserData = req.body;
   log(user.email);

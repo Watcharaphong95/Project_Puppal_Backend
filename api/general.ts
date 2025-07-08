@@ -3,6 +3,7 @@ import { conn } from "../dbconnect";
 import mysql from "mysql";
 import { GeneralPost } from "../model/generalPost";
 import { GeneralEditProfilePost } from "../model/generalProfileUpdate";
+import { GeneralLocationPut } from "../model/generalLocationPut";
 
 export const router = express.Router();
 
@@ -95,5 +96,43 @@ router.put("/", (req, res) => {
   conn.query(sql, (err, result) => {
     if (err) throw err;
     res.status(201).json({ message: "update success" });
+  });
+});
+
+router.put("/location", (req, res) => {
+  let general: GeneralLocationPut = req.body;
+  let sql = "UPDATE general SET lat = ?, lng = ? WHERE user_email = ?";
+  sql = mysql.format(sql, [general.lat, general.lng, general.email]);
+
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(201).json({ message: "update success" });
+  });
+});
+
+router.delete("/:email", (req, res) => {
+  let email = req.params.email;
+  // change clinic to general For CLINIC USER DELETE!!!!
+  let sqlCheck = "SELECT * FROM clinic WHERE user_email = ?";
+  sqlCheck = mysql.format(sqlCheck, [email]);
+  conn.query(sqlCheck, (err, result) => {
+    if (err) throw err;
+    if (result.length > 0) {
+      let sql = "DELETE FROM general WHERE user_email = ?";
+      sql = mysql.format(sql, [email]);
+
+      conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json({ message: "delete success" });
+      });
+    } else {
+      let sql = "DELETE FROM user WHERE email = ?"
+      sql = mysql.format(sql, [email]);
+
+      conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json({ message: "delete success" });
+      });
+    }
   });
 });

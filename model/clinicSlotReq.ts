@@ -5,14 +5,13 @@
 //   const clinicSlotReq = Convert.toClinicSlotReq(json);
 
 export interface ClinicSlotReq {
-    general_email: string;
-    clinic_email:  string;
-    dog_dogId:     number;
-    date:          string;
-    status:        number;
-    typeVaccine:   string;
-    type:          number;
-    message:       null;
+    general_email:   string;
+    clinic_email:    string;
+    dog_dogId:       string;
+    appointment_aid: string;
+    date:            string;
+    status:          number;
+    type:            number;
 }
 
 // Converts JSON strings to/from your types

@@ -431,13 +431,6 @@ router.get("/group/:id", (req, res) => {
   });
 });
 
-
-
-    if (err) throw err;
-    res.status(200).json(result);
-  });
-});
-
 function generateTimeSlots(
   open: string,
   close: string,

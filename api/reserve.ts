@@ -122,9 +122,9 @@ router.get("/general/:email", (req, res) => {
         time,
         clinicName: r.status === 0 ? "" : r.clinicName || null,
         clinicImage: r.status === 0 ? "" : r.clinicImage || null,
-        clinicPhone: r.status === 0 ? "" : r. clinicPhone || null,
-        clinicLat: r.status === 0 ? "" : r. clinicLat || null,
-        clinicLng: r.status === 0 ? "" : r. clinicLng || null,
+        clinicPhone: r.status === 0 ? "" : r.clinicPhone || null,
+        clinicLat: r.status === 0 ? "" : r.clinicLat || null,
+        clinicLng: r.status === 0 ? "" : r.clinicLng || null,
       });
     });
 
@@ -139,24 +139,25 @@ router.get("/general/:email", (req, res) => {
 
 router.put("/cancleReserve/:reserveId", (req, res) => {
   let reserveID = req.params.reserveId;
-  let sql = "UPDATE reserve SET status = 0 WHERE reserveID = ?"
+  let sql = "UPDATE reserve SET status = 0 WHERE reserveID = ?";
   sql = mysql.format(sql, [reserveID]);
   conn.query(sql, (err, result) => {
-    if(err) throw err;
-    res.status(200).json({message: result.affectedRows})
-  })
-})
+    if (err) throw err;
+    res.status(200).json({ message: result.affectedRows });
+  });
+});
 
 router.post("/addRequest", (req, res) => {
   let reserve: ClinicSlotReq = req.body;
-  let sql = "INSERT INTO reserve (general_email, clinic_email, dog_dogId, date,  appointment_aid) VALUES (?,?,?,?,?)";
+  let sql =
+    "INSERT INTO reserve (general_email, clinic_email, dog_dogId, date,  appointment_aid) VALUES (?,?,?,?,?)";
   sql = mysql.format(sql, [
     reserve.general_email,
     reserve.clinic_email,
     reserve.dog_dogId,
     reserve.date,
     reserve.appointment_aid,
-  ])
+  ]);
 
   let sqlCheck = `
     SELECT * FROM reserve 
@@ -267,26 +268,18 @@ router.post("/doglist", (req, res) => {
 
   // First, get all dogs of the user
   let sql = `
-    SELECT 
-      d.*, 
-      IF(r.dog_dogId IS NOT NULL, 0, 1) AS status 
-    FROM dog d
-    LEFT JOIN (
-      SELECT dog_dogId 
-      FROM reserve 
-      WHERE general_email = ? AND DATE(date) = DATE(?) AND status != 0
-    ) r ON d.dogId = r.dog_dogId
-    WHERE d.user_email = ?
-    ORDER BY status desc
+   SELECT *
+   FROM dog
+   WHERE user_email = ?
   `;
 
-  sql = mysql.format(sql, [data.email, data.date, data.email]);
+  sql = mysql.format(sql, [data.email]);
 
   conn.query(sql, (err, result) => {
     if (err) throw err;
-    res.status(201).json({ message: "insert complete" })
-  })
-})
+    res.status(200).json(result);
+  });
+});
 
 router.get("/:email", (req, res) => {
   let email = req.params.email;
@@ -342,14 +335,11 @@ WHERE reserve.reserveID = ?
   });
 });
 
-
 router.put("/:reserveID", (req, res) => {
-  let reserveID = req.params.reserveID
+  let reserveID = req.params.reserveID;
   let data: ReservePost = req.body;
-  let sql = "UPDATE reserve SET status = ? WHERE reserveID = ?"
-  sql = mysql.format(sql, [
-    data.status,
-    reserveID])
+  let sql = "UPDATE reserve SET status = ? WHERE reserveID = ?";
+  sql = mysql.format(sql, [data.status, reserveID]);
   conn.query(sql, (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Database error", error: err });
@@ -358,15 +348,13 @@ router.put("/:reserveID", (req, res) => {
 
     res.status(200).json({ message: "Profile updated successfully" });
   });
-})
+});
 
 router.put("/type/:reserveID", (req, res) => {
-  let reserveID = req.params.reserveID
+  let reserveID = req.params.reserveID;
   let data: ClinicUpdateTypePost = req.body;
-  let sql = "UPDATE reserve SET type = ? WHERE reserveID = ?"
-  sql = mysql.format(sql, [
-    data.type,
-    reserveID])
+  let sql = "UPDATE reserve SET type = ? WHERE reserveID = ?";
+  sql = mysql.format(sql, [data.type, reserveID]);
   conn.query(sql, (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Database error", error: err });
@@ -375,7 +363,7 @@ router.put("/type/:reserveID", (req, res) => {
 
     res.status(200).json({ message: "Profile updated successfully" });
   });
-})
+});
 
 router.get("/group/:id", (req, res) => {
   let id = req.params.id;

@@ -9,8 +9,40 @@ import { ClinicSlotPost } from "../model/clinicSlotPost";
 import { ClinicSlotGet } from "../model/clinicSlotGet";
 import { ReserveSpecialCheckPost } from "../model/reserveSpecialCheckPost";
 import { ReserveDoglist } from "../model/reserveDoglist";
+import moment from "moment";
+import { db } from "../firebaseconnect";
 
 export const router = express.Router();
+
+router.post('/checkSpecial', async (req, res) => {
+   const data:ReserveSpecialCheckPost = req.body;
+
+  if (!data.general_email || !data.clinic_email || !data.date) {
+    res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  try {
+    // Parse date to get the day range in Asia/Bangkok timezone
+    const inputMoment = moment.tz(data.date, 'Asia/Bangkok');
+    const dateString = inputMoment.format('YYYY-MM-DD');
+    const start = `${dateString} 00:00:00.000`;
+    const end = `${dateString} 23:59:59.999`;
+
+    const snapshot = await db.collection('reserve')
+      .where('generalEmail', '==', data.general_email)
+      .where('clinicEmail', '==', data.clinic_email)
+      .where('date', '>=', start)
+      .where('date', '<=', end)
+      .get();
+
+    const hasReserve = !snapshot.empty;
+
+    res.status(200).json(hasReserve );
+  } catch (error) {
+    console.error('🔥 Error checking reserve:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+})
 
 router.get("/", (req, res) => {
   let sql = "SELECT * FROM reserve";
@@ -217,52 +249,6 @@ router.post("/addRequest", (req, res) => {
   });
 });
 
-router.post("/checkSpecial", (req, res) => {
-  let input: ReserveSpecialCheckPost = req.body;
-  const inputDate = new Date(input.date).toISOString().slice(0, 10);
-  let sql = "SELECT open, close, numPerTime FROM clinic WHERE user_email = ?";
-  sql = mysql.format(sql, [input.clinic_email]);
-  conn.query(sql, (err, result) => {
-    if (err) throw err;
-    if (result.length > 0) {
-      let clinic: ClinicSlotGet = result[0];
-      let sql2 =
-        "SELECT TIME(date) as time FROM reserve WHERE clinic_email = ? AND general_email = ? AND DATE(date) = ? GROUP BY TIME(date) HAVING COUNT(*) >= ?";
-      sql2 = mysql.format(sql2, [
-        input.clinic_email,
-        input.general_email,
-        inputDate,
-        clinic.numPerTime,
-      ]);
-      conn.query(sql2, (err, result) => {
-        if (err) throw err;
-
-        const combined: { time: string } = {
-          time: result.map((r: any) => r.time).join(", "),
-        };
-        const filledSlots = combined.time
-          .split(",")
-          .map((s) => s.trim().slice(0, 5));
-
-        // res.status(200).json(combined);
-        const timeSlot = generateTimeSlots(
-          clinic.open,
-          clinic.close,
-          30,
-          filledSlots
-        );
-        if (timeSlot.length == 0) {
-          res.status(200).json(true);
-        } else {
-          res.status(400).json(false);
-        }
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  });
-});
-
 router.post("/doglist", (req, res) => {
   let data: ReserveDoglist = req.body;
 
@@ -453,3 +439,4 @@ function generateTimeSlots(
 
   return slots;
 }
+

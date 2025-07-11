@@ -26,98 +26,105 @@ router.get("/", (req, res) => {
   });
 });
 
-router.post("/dataList", (req, res) => {
-  let data: {
+
+const queryAsync = (query: string, params: any[] = []): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    conn.query(query, params, (err: any, results: any[]) => {
+      if (err) reject(err);
+      else resolve(results);
+    });
+  });
+};
+
+router.post("/dataList", async (req, res) => {
+    interface DataRequest {
     email: string;
     dogId: number[];
     aid: number[];
     clinicEmail: string[];
-  } = req.body;
+  }
 
-  const clinicQuery = mysql.format(
-    "SELECT * FROM clinic WHERE user_email IN (?)",
-    [data.clinicEmail]
-  );
+  try {
+    const data = req.body;
 
-  const injectionAidQuery = `SELECT DISTINCT oldAppointment_aid FROM injectionRecord WHERE oldAppointment_aid IN (?)`;
-  const injectionAidFormatted = mysql.format(injectionAidQuery, [data.aid]);
-
-  const aidQuery = mysql.format(
-    "SELECT * FROM appointment WHERE general_user_email = ?",
-    [data.email]
-  );
-
-  conn.query(injectionAidFormatted, (err, injectionResult) => {
-    if (err) throw err;
-
-    const injectionAids = injectionResult.map(
-      (row: any) => row.oldAppointment_aid
+    // Prepare all queries
+    const clinicQuery = mysql.format(
+      "SELECT * FROM clinic WHERE user_email IN (?)",
+      [data.clinicEmail]
     );
 
-    conn.query(aidQuery, (err, aidResult) => {
-      if (err) throw err;
+    const injectionAidQuery = mysql.format(
+      "SELECT DISTINCT oldAppointment_aid FROM injectionRecord WHERE oldAppointment_aid IN (?)",
+      [data.aid]
+    );
 
-      // Get all dogIds from appointments returned
-      const appointmentDogIds = aidResult.map((a: any) => a.dogId);
-      const combinedDogIds = [
-        ...new Set([...appointmentDogIds, ...data.dogId]),
-      ];
+    const aidQuery = mysql.format(
+      "SELECT * FROM appointment WHERE general_user_email = ?",
+      [data.email]
+    );
 
-      // Query dogs with all these dogIds
-      const dogQuery = mysql.format("SELECT * FROM dog WHERE dogId IN (?)", [
-        combinedDogIds.length > 0 ? combinedDogIds : [-1],
-      ]);
+    // Execute injection and appointment queries in parallel
+    const [injectionResult, aidResult] = await Promise.all([
+      queryAsync(injectionAidQuery),
+      queryAsync(aidQuery)
+    ]);
 
-      conn.query(dogQuery, (err, dogResult) => {
-        if (err) throw err;
+    // Process injection results
+    const injectionAids = injectionResult.map((row: any) => row.oldAppointment_aid);
 
-        conn.query(clinicQuery, (err, clinicResult) => {
-          if (err) throw err;
+    // Get dog IDs from appointments
+    const appointmentDogIds = aidResult.map((a: any) => a.dogId);
+    const combinedDogIds = [...new Set([...appointmentDogIds, ...data.dogId])];
 
-          // Update appointment status and convert dates to Asia/Bangkok timezone
-          const updatedAppointments = aidResult.map((appointment: any) => {
-            const aid = appointment.aid;
-            const isInSentAid = data.aid.includes(aid);
-            const hasInjectionRecord = injectionAids.includes(aid);
+    // Prepare dog query
+    const dogQuery = mysql.format("SELECT * FROM dog WHERE dogId IN (?)", [
+      combinedDogIds.length > 0 ? combinedDogIds : [-1]
+    ]);
 
-            // Convert appointment.date to Asia/Bangkok timezone string yyyy-MM-dd
-            if (appointment.date) {
-              const localDate = new Date(appointment.date).toLocaleDateString(
-                "sv-SE",
-                {
-                  timeZone: "Asia/Bangkok",
-                }
-              );
-              appointment.date = localDate;
-            }
+    // Execute dog and clinic queries in parallel
+    const [dogResult, clinicResult] = await Promise.all([
+      queryAsync(dogQuery),
+      queryAsync(clinicQuery)
+    ]);
 
-            if (!isInSentAid && !hasInjectionRecord) {
-              return { ...appointment, status: 0 };
-            }
-            return appointment;
-          });
+    // Process appointments (convert dates and update status)
+    const updatedAppointments = aidResult.map((appointment: any) => {
+      const aid = appointment.aid;
+      const isInSentAid = data.aid.includes(aid);
+      const hasInjectionRecord = injectionAids.includes(aid);
 
-          // Also convert dog's birthday date to Asia/Bangkok (optional)
-          dogResult.forEach((dog: any) => {
-            if (dog.birthday) {
-              dog.birthday = new Date(dog.birthday).toLocaleDateString(
-                "sv-SE",
-                {
-                  timeZone: "Asia/Bangkok",
-                }
-              );
-            }
-          });
-
-          res.status(200).json({
-            dogs: dogResult,
-            appointments: updatedAppointments,
-            clinics: clinicResult,
-          });
+      // Convert appointment.date to Asia/Bangkok timezone
+      if (appointment.date) {
+        appointment.date = new Date(appointment.date).toLocaleDateString("sv-SE", {
+          timeZone: "Asia/Bangkok"
         });
-      });
+      }
+
+      if (!isInSentAid && !hasInjectionRecord) {
+        return { ...appointment, status: 0 };
+      }
+      return appointment;
     });
-  });
+
+    // Convert dog birthdays
+    dogResult.forEach((dog: any) => {
+      if (dog.birthday) {
+        dog.birthday = new Date(dog.birthday).toLocaleDateString("sv-SE", {
+          timeZone: "Asia/Bangkok"
+        });
+      }
+    });
+
+    res.status(200).json({
+      dogs: dogResult,
+      appointments: updatedAppointments,
+      clinics: clinicResult,
+    });
+
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // router.post("/", (req, res) => {

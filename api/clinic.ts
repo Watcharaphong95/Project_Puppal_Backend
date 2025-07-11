@@ -1,4 +1,5 @@
-import express from "express";
+import express from "express"
+import admin from 'firebase-admin';
 import { conn } from "../dbconnect";
 import mysql from "mysql";
 import { ClinicPost } from "../model/clinicPost";
@@ -6,6 +7,9 @@ import { ClinicSearch } from "../model/clinicSearchPost";
 import { getDistance } from "geolib";
 import { ClinicSlotGet } from "../model/clinicSlotGet";
 import { ClinicSlotPost } from "../model/clinicSlotPost";
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+
 
 export const router = express.Router();
 

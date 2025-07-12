@@ -11,38 +11,40 @@ import { ReserveSpecialCheckPost } from "../model/reserveSpecialCheckPost";
 import { ReserveDoglist } from "../model/reserveDoglist";
 import moment from "moment";
 import { db } from "../firebaseconnect";
+import { sendFCMToken } from "../firebaseNotification";
 
 export const router = express.Router();
 
-router.post('/checkSpecial', async (req, res) => {
-   const data:ReserveSpecialCheckPost = req.body;
+router.post("/checkSpecial", async (req, res) => {
+  const data: ReserveSpecialCheckPost = req.body;
 
   if (!data.general_email || !data.clinic_email || !data.date) {
-    res.status(400).json({ error: 'Missing parameters' });
+    res.status(400).json({ error: "Missing parameters" });
   }
 
   try {
     // Parse date to get the day range in Asia/Bangkok timezone
-    const inputMoment = moment.tz(data.date, 'Asia/Bangkok');
-    const dateString = inputMoment.format('YYYY-MM-DD');
+    const inputMoment = moment.tz(data.date, "Asia/Bangkok");
+    const dateString = inputMoment.format("YYYY-MM-DD");
     const start = `${dateString} 00:00:00.000`;
     const end = `${dateString} 23:59:59.999`;
 
-    const snapshot = await db.collection('reserve')
-      .where('generalEmail', '==', data.general_email)
-      .where('clinicEmail', '==', data.clinic_email)
-      .where('date', '>=', start)
-      .where('date', '<=', end)
+    const snapshot = await db
+      .collection("reserve")
+      .where("generalEmail", "==", data.general_email)
+      .where("clinicEmail", "==", data.clinic_email)
+      .where("date", ">=", start)
+      .where("date", "<=", end)
       .get();
 
     const hasReserve = !snapshot.empty;
 
-    res.status(200).json(hasReserve );
+    res.status(200).json(hasReserve);
   } catch (error) {
-    console.error('🔥 Error checking reserve:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("🔥 Error checking reserve:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-})
+});
 
 router.get("/", (req, res) => {
   let sql = "SELECT * FROM reserve";
@@ -404,6 +406,25 @@ router.get("/group/:id", (req, res) => {
     res.status(200).json(grouped);
   });
 });
+
+router.post("/notify/clinic-request", async (req, res) => {
+  const { clinicEmail, userName } = req.body;
+
+  // Get clinic FCM token
+  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [clinicEmail]);
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = "📥 New Appointment Request";
+    const body = `From: ${userName}`;
+
+    await sendFCMToken(token, title, body);
+    res.status(200).json({ message: "Notification sent to clinic" });
+  });
+});
+
 
 function generateTimeSlots(
   open: string,

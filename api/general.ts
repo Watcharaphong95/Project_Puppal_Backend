@@ -4,6 +4,7 @@ import mysql from "mysql";
 import { GeneralPost } from "../model/generalPost";
 import { GeneralEditProfilePost } from "../model/generalProfileUpdate";
 import { GeneralLocationPut } from "../model/generalLocationPut";
+import { FcmTokenPost } from "../model/fcmTokenPost";
 
 export const router = express.Router();
 

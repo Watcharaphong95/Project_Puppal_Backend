@@ -8,6 +8,7 @@ import { getDistance } from "geolib";
 import { ClinicSlotGet } from "../model/clinicSlotGet";
 import { ClinicSlotPost } from "../model/clinicSlotPost";
 import moment from "moment-timezone";
+import { FcmTokenPost } from "../model/fcmTokenPost";
 
 export const router = express.Router();
 

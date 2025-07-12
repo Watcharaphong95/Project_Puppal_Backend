@@ -79,21 +79,21 @@ router.post("/", (req, res) => {
   const formattedDate = `${year}-${month}-${day}`;
 
   let sql =
-    "INSERT INTO injectionRecord (dog_Id, reserveID, vaccine, date, vaccine_label) VALUES (?, ?, ?, ?, ?)";
+    "INSERT INTO injectionRecord (reserveID, appointment_aid, vaccine, date, vaccine_label) VALUES (?, ?, ?, ?, ?)";
   
   sql = mysql.format(sql, [
-    app.dog_Id,
     app.reserveID,
+    app.appointment_aid,
     app.vaccine,
-    formattedDate,       // ✅ ต้องอยู่ตำแหน่งเดียวกับ field `date`
-    app.vaccine_label,   // ✅ ตรงกับ `vaccine_label`
+    formattedDate,      
+    app.vaccine_label,   
   ]);
-
   conn.query(sql, (err, result) => {
     if (err) {
       res.status(404).json({ message: err.sqlMessage });
     } else {
-      res.status(201).json({ insertId: result.insertId });
+      res.status(201).json({ aid: result.insertId }); 
+
     }
   });
 });

@@ -98,6 +98,7 @@ router.put("/:aid", (req, res) => {
   let sql = "UPDATE appointment SET status = ? WHERE aid = ?"
   sql = mysql.format(sql, [1, aid])
   conn.query(sql, (err, result) => {
+    res.status(201).json({ aid: result.insertId });
     if (err) {
       res.status(404).json({ message: err.sqlMessage });
     } else {
@@ -105,3 +106,24 @@ router.put("/:aid", (req, res) => {
     }
   });
 })
+
+router.get("/:dogId/:email", (req, res) => {
+  const dogId = req.params.dogId;
+  const email = req.params.email;
+
+  const sql = `
+    SELECT * FROM appointment WHERE dogId = ? AND general_user_email = ?
+  `;
+
+  conn.query(mysql.format(sql, [dogId,email]), (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "No injection records found" });
+    }
+
+    res.status(200).json({ data: result });
+  });
+});

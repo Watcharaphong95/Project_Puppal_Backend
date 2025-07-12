@@ -90,3 +90,14 @@ router.post("/", (req, res) => {
     res.status(201).json({ insertId: result.insertId });
   });
 });
+
+router.get("/details/:id",(req,res) =>{
+  let id = req.params.id
+  let sql = "SELECT dog.*,appointment.* FROM dog JOIN appointment on dog.dogId =  appointment.dogId JOIN injectionRecord on dog.dogId = injectionRecord. WHERE dog.dogId = ?"
+  sql = mysql.format(sql, [id]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json(result);
+  });
+})
+

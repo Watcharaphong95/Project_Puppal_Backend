@@ -17,16 +17,50 @@ router.get("/", (req, res) => {
 });
 
 router.get("/id/:id", (req, res) => {
-  let id = req.params.id;
-  let sql =
-    "SELECT injectionRecord.*, vaccine.name as name FROM injectionRecord, vaccine WHERE injectionRecord.vaccineType = vaccine.vid AND dog_id = ?";
-  sql = mysql.format(sql, [id]);
-  conn.query(sql, (err, result) => {
-    if (err) throw err;
+  const id = req.params.id;
+  let sql = `
+   SELECT 
+  injectionRecord.rid,
+  injectionRecord.reserveID,
+  injectionRecord.appointment_aid,
+  injectionRecord.vaccine AS injectionVaccine,
+  injectionRecord.vaccine_label,
+  dog.name AS dogName, 
+  clinic.name AS clinicName,
+  appointment.vaccine AS appointmentVaccine,
+  appointment.date AS appointmentDate,
+  injectionRecord.date AS injectionDate
+FROM injectionRecord
+JOIN reserve ON injectionRecord.reserveID = reserve.reserveID
+JOIN dog ON reserve.dog_dogId = dog.dogId
+JOIN clinic ON reserve.clinic_email = clinic.user_email
+JOIN appointment ON injectionRecord.appointment_aid = appointment.aid
+WHERE reserve.dog_dogId = ?;
 
-    res.status(200).json(result);
+  `;
+
+  sql = mysql.format(sql, [id]);
+
+  conn.query(sql, (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Database query failed" });
+    }
+
+    const adjusted = results.map((row: any) => ({
+      ...row,
+      appointmentDate: row.appointmentDate
+        ? new Date(row.appointmentDate).toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" })
+        : null,
+      injectionDate: row.injectionDate
+        ? new Date(row.injectionDate).toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" })
+        : null,
+    }));
+
+    res.status(200).json(adjusted);
   });
 });
+
 
 router.get("/all/:email", (req, res) => {
   let email = req.params.email;

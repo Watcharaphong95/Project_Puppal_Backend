@@ -7,6 +7,7 @@
 export interface ClinicSearch {
     email: string;
     word:  string;
+    date:  string;
 }
 
 // Converts JSON strings to/from your types

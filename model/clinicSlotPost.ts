@@ -6,6 +6,7 @@
 
 export interface ClinicSlotPost {
     email: string;
+    clinicEmail: string;
     date:  string;
 }
 

@@ -6,6 +6,7 @@ import { log } from "console";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { OtpPost } from "../model/otpPost";
+import { FcmTokenPost } from "../model/fcmTokenPost";
 
 export const router = express.Router();
 
@@ -122,6 +123,63 @@ router.put("/password", (req, res) => {
     res.status(200).json({ message: "Password Update Success" });
   });
 });
+
+router.put("/fcmToken", (req, res) => {
+  const dataToken: FcmTokenPost = req.body;
+  const email = dataToken.user_email;
+  const token = dataToken.fcmToken;
+
+  const checkGeneralSQL = mysql.format(
+    "SELECT 1 FROM general WHERE user_email = ? LIMIT 1",
+    [email]
+  );
+  const checkClinicSQL = mysql.format(
+    "SELECT 1 FROM clinic WHERE user_email = ? LIMIT 1",
+    [email]
+  );
+
+  // Check both tables first
+  conn.query(checkGeneralSQL, (err, generalResult) => {
+    if (err) return res.status(500).json({ message: "Error checking general", error: err });
+
+    conn.query(checkClinicSQL, (err, clinicResult) => {
+      if (err) return res.status(500).json({ message: "Error checking clinic", error: err });
+
+      const updateQueries: string[] = [];
+
+      if (generalResult.length > 0) {
+        updateQueries.push(mysql.format(
+          "UPDATE general SET fcmToken = ? WHERE user_email = ?",
+          [token, email]
+        ));
+      }
+
+      if (clinicResult.length > 0) {
+        updateQueries.push(mysql.format(
+          "UPDATE clinic SET fcmToken = ? WHERE user_email = ?",
+          [token, email]
+        ));
+      }
+
+      if (updateQueries.length === 0) {
+        return res.status(404).json({ message: "User email not found in general or clinic" });
+      }
+
+      let completed = 0;
+      for (let i = 0; i < updateQueries.length; i++) {
+        conn.query(updateQueries[i], (err) => {
+          if (err) return res.status(500).json({ message: "Error updating token", error: err });
+
+          completed++;
+          if (completed === updateQueries.length) {
+            return res.status(201).json({ message: "FCM token updated successfully" });
+          }
+        });
+      }
+    });
+  });
+});
+
 
 router.get("/sendotp/:email", async (req, res) => {
   const email = req.params.email;

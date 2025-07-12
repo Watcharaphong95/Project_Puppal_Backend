@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import { router as index} from "./api/index";
 import { router as user} from "./api/user";
@@ -13,6 +14,7 @@ import { router as vaccine } from "./api/vaccine";
 import { router as appointment } from "./api/appointment";
 import { router as cilnicinjectionRecord} from "./api/clinicinjectionRecord"
 import bodyParser from "body-parser";
+
 
 export const app = express();
 

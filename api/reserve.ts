@@ -410,7 +410,7 @@ router.get("/group/:id", (req, res) => {
 router.post("/notify/clinic-request", async (req, res) => {
   const { clinicEmail, userName } = req.body;
 
-  // Get clinic FCM token
+  // Get clinic FCM token test
   const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [clinicEmail]);
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });

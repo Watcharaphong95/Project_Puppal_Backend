@@ -8,7 +8,7 @@ import { router as doctor} from "./api/doctor";
 import { router as dog} from "./api/dog";
 import { router as injectionRecord} from "./api/dogInjectionRecord";
 import { router as special } from "./api/special";
-// import { router as reserve} from "./api/reserve";
+import { router as reserve} from "./api/reserve";
 import { router as doctorspecial } from "./api/docspecial";
 import { router as vaccine } from "./api/vaccine";
 import { router as appointment } from "./api/appointment";

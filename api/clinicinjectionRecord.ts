@@ -2,6 +2,7 @@ import express from "express";
 import { conn } from "../dbconnect";
 import mysql from "mysql";
 import { ClinicinjectionRecordPost } from "../model/clinicinjectionRecordPost";
+import { log } from "firebase-functions/logger";
 
 export const router = express.Router();
 
@@ -101,14 +102,26 @@ router.post("/", (req, res) => {
   });
 });
 
-router.get("/:reserveID", (req, res) => {
-  const reserveID = req.params.reserveID;
+router.get("/:dogId/:date", (req, res) => {
+  const dogId = req.params.dogId;
+  let date = req.params.date;
+
+  // ตัดเอาแค่วันที่ ก่อนช่องว่าง (ถ้ามีเวลา)
+  if (date.includes(' ')) {
+    date = date.split(' ')[0];
+  }
 
   const sql = `
-    SELECT * FROM injectionRecord WHERE reserveID = ?
-  `;
+  SELECT injectionRecord.*, 
+         DATE(injectionRecord.date) AS injection_date_only, 
+         appointment.* 
+  FROM injectionRecord 
+  JOIN appointment ON appointment.aid = injectionRecord.nextAppointment_aid 
+  WHERE appointment.dogId = ? AND DATE(injectionRecord.date) = ?
+`;
 
-  conn.query(mysql.format(sql, [reserveID]), (err, result) => {
+
+  conn.query(mysql.format(sql, [dogId, date]), (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Database error", error: err });
     }
@@ -120,6 +133,9 @@ router.get("/:reserveID", (req, res) => {
     res.status(200).json({ data: result });
   });
 });
+
+
+
 
 
 

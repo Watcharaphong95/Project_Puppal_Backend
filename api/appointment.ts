@@ -204,23 +204,33 @@ router.put("/:aid", (req, res) => {
   });
 })
 
-router.get("/:dogId/:email", (req, res) => {
-  const dogId = req.params.dogId;
+router.get("/latestdate/:aids/:email", (req, res) => {
+  const aidsParam = req.params.aids; // '32,56'
   const email = req.params.email;
 
+  const aidsArray = aidsParam.split(',').map(aid => parseInt(aid.trim()));
+
+  const placeholders = aidsArray.map(() => '?').join(',');
+
   const sql = `
-    SELECT * FROM appointment WHERE dogId = ? AND general_user_email = ?
+    SELECT dogId, general_user_email, MAX(date) as latest_date, GROUP_CONCAT(DISTINCT vaccine SEPARATOR ', ') AS vaccines
+    FROM appointment
+    WHERE aid IN (${placeholders}) AND general_user_email = ?
+    GROUP BY dogId, general_user_email
   `;
 
-  conn.query(mysql.format(sql, [dogId,email]), (err, result) => {
+  conn.query(mysql.format(sql, [...aidsArray, email]), (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Database error", error: err });
     }
-
     if (result.length === 0) {
-      return res.status(404).json({ message: "No injection records found" });
+      return res.status(404).json({ message: "No appointment records found" });
     }
 
     res.status(200).json({ data: result });
   });
 });
+
+
+
+

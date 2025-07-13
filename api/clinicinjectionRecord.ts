@@ -79,15 +79,18 @@ router.post("/", (req, res) => {
   const formattedDate = `${year}-${month}-${day}`;
 
   let sql =
-    "INSERT INTO injectionRecord (reserveID, appointment_aid, vaccine, date, vaccine_label) VALUES (?, ?, ?, ?, ?)";
+    "INSERT INTO injectionRecord (oldAppointment_aid, nextAppointment_aid, clinic_email, vaccine, date, vaccine_label, type) VALUES (?, ?, ?, ?, ?, ?, ?)";
   
   sql = mysql.format(sql, [
-    app.reserveID,
-    app.appointment_aid,
+    app.oldAppointment_aid,
+    app.nextAppointment_aid,
+    app.clinic_email,
     app.vaccine,
     formattedDate,      
-    app.vaccine_label,   
+    app.vaccine_label,
+    app.type   
   ]);
+   console.log("SQL Query:", sql);
   conn.query(sql, (err, result) => {
     if (err) {
       res.status(404).json({ message: err.sqlMessage });

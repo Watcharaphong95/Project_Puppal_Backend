@@ -5,12 +5,13 @@
 //   const clinicinjectionRecordPost = Convert.toClinicinjectionRecordPost(json);
 
 export interface ClinicinjectionRecordPost {
-    rid:             number;
-    reserveID:       number;
-    appointment_aid: number;
-    vaccine:         string;
-    date:            Date;
-    vaccine_label:   string;
+    oldAppointment_aid:  number;
+    nextAppointment_aid: number;
+    clinic_email:        string;
+    vaccine:             string;
+    date:                Date;
+    vaccine_label:       string;
+    type:                number;
 }
 
 // Converts JSON strings to/from your types

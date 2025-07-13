@@ -30,7 +30,7 @@ app.use("/doctor", doctor);
 app.use("/dog", dog);
 app.use("/injectionRecord", injectionRecord);
 app.use("/special", special);
-// app.use("/reserve", reserve);
+app.use("/reserve", reserve);
 app.use("/docspecial", doctorspecial);
 app.use("/vaccine", vaccine);
 app.use("/appointment", appointment);

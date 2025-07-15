@@ -78,19 +78,21 @@ router.post("/", (req, res) => {
   const month = String(dateTemp.getMonth() + 1).padStart(2, "0");
   const day = String(dateTemp.getDate()).padStart(2, "0");
   const formattedDate = `${year}-${month}-${day}`;
-
+  // log(app.oldAppointment_aid,app.nextAppointment_aid);
   let sql =
-    "INSERT INTO injectionRecord (oldAppointment_aid, nextAppointment_aid, clinic_email, vaccine, date, vaccine_label, type) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    "INSERT INTO injectionRecord (oldAppointment_aid, nextAppointment_aid, clinic_email,doctorCareerNo ,vaccine, date, vaccine_label, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
   
   sql = mysql.format(sql, [
-    app.oldAppointment_aid,
-    app.nextAppointment_aid,
-    app.clinic_email,
+    app.oldAppointmentAid ?? null,
+    app.nextAppointmentAid,
+    app.clinicEmail,
+    app.doctorCareerNo,
     app.vaccine,
     formattedDate,      
     app.vaccine_label,
     app.type   
   ]);
+
    console.log("SQL Query:", sql);
   conn.query(sql, (err, result) => {
     if (err) {

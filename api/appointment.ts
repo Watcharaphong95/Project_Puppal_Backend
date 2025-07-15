@@ -179,8 +179,10 @@ router.post("/", (req, res) => {
     app.vaccine,
     formattedDate,
   ]);
-
+console.log("SQL Query:", sql);
+console.time("insertAppointment");
   conn.query(sql, (err, result) => {
+    console.timeEnd("insertAppointment");
     if (err) {
       console.error("SQL Error:", err.sqlMessage);
       res.status(500).json({ message: err.sqlMessage });

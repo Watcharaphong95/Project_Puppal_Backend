@@ -469,6 +469,43 @@ router.post("/notify/general-reponse", async (req, res) => {
 });
 
 
+router.post("/notify/accept/general-reponse", async (req, res) => {
+  const { generalEmail, userName } = req.body;
+
+  // Get clinic FCM token
+  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [generalEmail]);
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = "📥 กูรับฉีดยาหมามึงแล้ว";
+    const body = `From: ${userName}`;
+
+    await sendFCMToken(token, title, body);
+    res.status(200).json({ message: "Notification sent to general" });
+  });
+});
+
+router.post("/notify/refuse/general-reponse", async (req, res) => {
+  const { generalEmail, userName } = req.body;
+
+  // Get clinic FCM token
+  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [generalEmail]);
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = "📥 กูไม่รับฉีดยาหมามึงไอ้สัส";
+    const body = `From: ${userName}`;
+
+    await sendFCMToken(token, title, body);
+    res.status(200).json({ message: "Notification sent to general" });
+  });
+});
+
+
 function generateTimeSlots(
   open: string,
   close: string,

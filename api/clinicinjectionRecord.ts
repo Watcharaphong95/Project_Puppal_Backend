@@ -136,6 +136,43 @@ router.get("/:dogId/:date", (req, res) => {
   });
 });
 
+router.get("/history/:dogId/:email", (req, res) => {
+  const dogId = req.params.dogId;
+  const email = req.params.email;
+
+ const sql = `
+  SELECT 
+    injectionRecord.oldAppointment_aid,
+    injectionRecord.nextAppointment_aid,
+    injectionRecord.clinic_email,
+    injectionRecord.doctorCareerNo,
+    injectionRecord.vaccine,
+    injectionRecord.date,
+    injectionRecord.vaccine_label,
+    injectionRecord.type
+  FROM injectionRecord 
+  LEFT JOIN appointment 
+    ON appointment.aid = injectionRecord.nextAppointment_aid 
+  WHERE (appointment.dogId = ? AND appointment.general_user_email = ?) 
+     OR injectionRecord.nextAppointment_aid IS NULL
+`;
+
+  conn.query(mysql.format(sql, [dogId, email]), (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "No injection records found" });
+    }
+
+    res.status(200).json({ data: result });
+  });
+});
+
+
+
+
 
 
 

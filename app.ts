@@ -15,7 +15,7 @@ import { router as appointment } from "./api/appointment";
 import { router as cilnicinjectionRecord} from "./api/clinicinjectionRecord"
 import { router as notify} from "./api/notify"
 import bodyParser from "body-parser";
-
+import { router as schedule } from "./api/schedule"        ;
 
 
 export const app = express();
@@ -35,5 +35,5 @@ app.use("/docspecial", doctorspecial);
 app.use("/vaccine", vaccine);
 app.use("/appointment", appointment);
 app.use("/clinicinjectionRecord", cilnicinjectionRecord);
-
+app.use("/schedule", schedule);
 app.use("/notify", notify);

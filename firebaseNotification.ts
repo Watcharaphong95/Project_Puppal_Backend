@@ -37,13 +37,14 @@ export function notifyUpcomingAppointments(
   const notifyWeekOffsets = [1, 2]; // สัปดาห์ก่อน
   const notifyMonthOffsets = [1, 3, 6, 12]; // เดือนก่อน
   const notifyDayOffsets = [1, 2, 3]; // วันก่อน
+  const notifyOverdueOffsets = Array.from({length: 30}, (_, i) => i + 1); // วันหลังพลาดนัด
 
   const sqlAppointments = `
     SELECT a.aid, a.general_user_email, a.date, d.name as dogName, g.fcmToken
     FROM appointment a
     JOIN dog d ON a.dogId = d.dogId
     JOIN general g ON a.general_user_email = g.user_email
-    WHERE a.date >= CURDATE()
+    WHERE a.date >= CURDATE() - INTERVAL 30 DAY
   `;
 
   const sqlInjection = `SELECT oldAppointment_aid, nextAppointment_aid FROM injectionRecord`;
@@ -56,8 +57,6 @@ export function notifyUpcomingAppointments(
       return callback(null, errInjection);
     }
 
-    // console.log('Injection records loaded:', injectionRows.length);
-
     const oldAppointments = new Set<number>();
     const nextAppointments = new Set<number>();
 
@@ -66,18 +65,11 @@ export function notifyUpcomingAppointments(
       if (row.nextAppointment_aid) nextAppointments.add(row.nextAppointment_aid);
     }
 
-    // console.log('Injection sets created:', {
-    //   oldAppointments: Array.from(oldAppointments),
-    //   nextAppointments: Array.from(nextAppointments)
-    // });
-
     conn.query(sqlAppointments, async (errAppoint: any, appointmentRows: any[]) => {
       if (errAppoint) {
         console.error("Appointment query error:", errAppoint);
         return callback(null, errAppoint);
       }
-
-      // console.log('Appointments loaded:', appointmentRows.length);
 
       try {
         const firestore = admin.firestore();
@@ -91,15 +83,11 @@ export function notifyUpcomingAppointments(
           }
         });
 
-        // console.log('Firestore status map created:', Object.fromEntries(aidStatusMap));
-
         const notified: string[] = [];
 
         // Get today's date in Bangkok timezone, ignore time
         const today = new Date();
         const bangkokToday = new Date(today.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" }));
-        
-        // console.log('Today date (Bangkok):', bangkokToday.toISOString().split('T')[0]);
 
         for (const row of appointmentRows) {
           if (!row.date) {
@@ -107,25 +95,11 @@ export function notifyUpcomingAppointments(
             continue;
           }
 
-          // console.log('=== Processing appointment ===');
-          // console.log('Appointment details:', {
-          //   aid: row.aid,
-          //   email: row.general_user_email,
-          //   dogName: row.dogName,
-          //   originalDate: row.date,
-          //   fcmToken: row.fcmToken ? 'exists' : 'missing'
-          // });
-
           // Extract only the date part, ignore time
           const appointmentDateStr = new Date(row.date).toLocaleDateString("sv-SE", {
             timeZone: "Asia/Bangkok",
           });
           const appointmentDate = new Date(appointmentDateStr);
-
-          // console.log('Date comparison:', {
-          //   today: bangkokToday.toISOString().split('T')[0],
-          //   appointmentDate: appointmentDate.toISOString().split('T')[0]
-          // });
 
           // Calculate differences using date-only comparison
           const diffDays = Math.floor((appointmentDate.getTime() - bangkokToday.getTime()) / (1000 * 60 * 60 * 24));
@@ -145,76 +119,71 @@ export function notifyUpcomingAppointments(
           const notifyByWeek = notifyWeekOffsets.includes(diffWeeks) && sameWeekday;
           const notifyByMonth = notifyMonthOffsets.includes(diffMonths) && sameMonthDay;
           const notifyByDay = notifyDayOffsets.includes(diffDays);
-
-          // console.log('Notification conditions:', {
-          //   diffDays,
-          //   diffWeeks,
-          //   diffMonths,
-          //   sameWeekday,
-          //   sameMonthDay,
-          //   notifyByWeek,
-          //   notifyByMonth,
-          //   notifyByDay,
-          //   shouldNotify: notifyByWeek || notifyByMonth || notifyByDay
-          // });
+          
+          // Add overdue notification check
+          const notifyOverdue = diffDays < 0 && notifyOverdueOffsets.includes(Math.abs(diffDays));
 
           // Check FCM token first
           if (!row.fcmToken) {
-            // console.log('❌ No FCM token for appointment:', row.aid);
             continue;
           }
 
-          // Check if should notify
-          if (!(notifyByWeek || notifyByMonth || notifyByDay)) {
-            // console.log('❌ Not in notification window for appointment:', row.aid);
+          // Check if should notify (including overdue)
+          if (!(notifyByWeek || notifyByMonth || notifyByDay || notifyOverdue)) {
             continue;
           }
 
           const aid = row.aid;
           const status = aidStatusMap.get(aid);
-          
-          // console.log('Filtering conditions:', {
-          //   aid,
-          //   status,
-          //   hasOldAppointment: oldAppointments.has(aid),
-          //   nextAppointmentsSize: nextAppointments.size,
-          //   hasNextAppointment: nextAppointments.has(aid)
-          // });
 
           // Status filter
           if (status !== undefined && status !== 0) {
-            // console.log('❌ Status filter failed - status:', status);
             continue;
           }
 
           // Old appointment filter
           if (oldAppointments.has(aid)) {
-            // console.log('❌ Old appointment filter failed');
             continue;
           }
 
           const dateString = appointmentDate.toISOString().split("T")[0]; // yyyy-mm-dd
+          const formattedDate = new Date(dateString).toLocaleDateString("th-TH-u-ca-gregory", { 
+            year: "numeric", 
+            month: "long", 
+            day: "numeric", 
+            timeZone: "Asia/Bangkok" 
+          });
 
-          const message = {
-            token: row.fcmToken,
-            notification: {
-              title: `📅 คุณยังไม่ได้จองฉีดยาให้กับ ${row.dogName}`,
-              body: `${row.dogName} มีนัดฉีดยาที่คุณยังไม่จองวันที่ ${new Date(dateString).toLocaleDateString("th-TH-u-ca-gregory", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Bangkok" })}`,
-            },
-          };
+          let message;
+
+          if (notifyOverdue) {
+            // Overdue notification
+            const daysOverdue = Math.abs(diffDays);
+            message = {
+              token: row.fcmToken,
+              notification: {
+                title: `⚠️ ${row.dogName} พลาดนัดฉีดยาแล้ว!`,
+                body: `🐶${row.dogName} พลาดนัดฉีดยาเมื่อวันที่ ${formattedDate} (${daysOverdue} วันแล้ว) กรุณาจองนัดใหม่โดยเร็ว`,
+              },
+            };
+          } else {
+            // Regular upcoming notification
+            message = {
+              token: row.fcmToken,
+              notification: {
+                title: `🗓️ คุณยังไม่ได้จองฉีดยาให้กับ ${row.dogName}`,
+                body: `🐶${row.dogName} มีนัดฉีดยาที่คุณยังไม่จองวันที่ ${formattedDate}`,
+              },
+            };
+          }
 
           try {
             await admin.messaging().send(message);
             notified.push(row.general_user_email);
-            // console.log('✅ Notification sent successfully to:', row.general_user_email);
           } catch (fcmErr) {
-            // console.error(`❌ FCM send error for ${row.general_user_email}:`, fcmErr);
+            console.error(`FCM send error for ${row.general_user_email}:`, fcmErr);
           }
         }
-
-        // console.log('=== Notification process completed ===');
-        // console.log('Total notifications sent:', notified.length);
-        // console.log('Notified users:', notified);
 
         callback(notified);
       } catch (firestoreErr) {

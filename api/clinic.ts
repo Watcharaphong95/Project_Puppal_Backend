@@ -20,6 +20,14 @@ router.get("/", async (req, res) => {
   });
 });
 
+router.get("/allSpecial", async (req, res) => {
+  let sql = "SELECT * FROM special";
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json(result);
+  });
+});
+
 router.post("/search", async (req, res) => {
   let search: ClinicSearch = req.body;
   let sqlGeneral = "SELECT lat, lng FROM general WHERE user_email = ?";
@@ -59,14 +67,13 @@ router.post("/search", async (req, res) => {
         clinicEmail: string;
         date: string;
       }
+
       const inputMoment = moment.tz(search.date, "Asia/Bangkok");
       const dateString = inputMoment.format("YYYY-MM-DD");
-
       const start = `${dateString} 00:00:00.000`;
       const end = `${dateString} 23:59:59.999`;
 
       try {
-        // Step 1: Query Firestore once for all reservations on the date
         const snapshot = await db
           .collection("reserve")
           .select("clinicEmail", "date", "generalEmail")
@@ -75,21 +82,15 @@ router.post("/search", async (req, res) => {
           .where("date", "<=", end)
           .get();
 
-        // Step 2: Build special clinics set (based on clinicEmail != search.email)
         const specialClinics = new Set<string>();
+        const clinicTimeCounts: Record<string, Record<string, number>> = {};
+
         snapshot.docs.forEach((doc) => {
           const data = doc.data() as ReserveData;
           if (data.clinicEmail && data.clinicEmail !== search.email) {
             specialClinics.add(data.clinicEmail);
           }
-        });
 
-        // Step 3: Build a map from clinicEmail to counts per time slot
-        // { [clinicEmail]: { [time]: count } }
-        const clinicTimeCounts: Record<string, Record<string, number>> = {};
-
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data() as ReserveData;
           if (!clinicTimeCounts[data.clinicEmail]) {
             clinicTimeCounts[data.clinicEmail] = {};
           }
@@ -98,13 +99,10 @@ router.post("/search", async (req, res) => {
             (clinicTimeCounts[data.clinicEmail][time] || 0) + 1;
         });
 
-        // Step 4: Map over clinics, check full status from clinicTimeCounts without new queries
         const finalClinics = formattedClinics.map((clinic: any) => {
           const clinicEmail = clinic.user_email;
           const numPerTime = clinic.numPerTime;
-
           const timeCounts = clinicTimeCounts[clinicEmail] || {};
-
           const allTimeSlots = generateTimeSlots(clinic.open, clinic.close, 30);
 
           const filledSlots = allTimeSlots.filter(
@@ -120,9 +118,52 @@ router.post("/search", async (req, res) => {
           };
         });
 
-        res.status(200).json(finalClinics);
+        const clinicEmails = finalClinics.map((c: any) => c.user_email);
+
+        if (clinicEmails.length === 0) {
+          return res.status(200).json(
+            finalClinics.map((clinic: any) => ({
+              ...clinic,
+              specialties: [],
+            }))
+          );
+        }
+
+        const placeholders = clinicEmails.map(() => "?").join(",");
+        let sqlSpecialties = `
+  SELECT d.user_email, s.name
+  FROM doctor d
+  JOIN docspecial ds ON d.careerNo = ds.doctorID
+  JOIN special s ON ds.specialID = s.special_id
+  WHERE d.user_email IN (${placeholders})
+`;
+        sqlSpecialties = mysql.format(sqlSpecialties, clinicEmails);
+
+        conn.query(sqlSpecialties, (err, results) => {
+          if (err) {
+            console.error("\u274C Failed to fetch specialties:", err);
+            return res
+              .status(500)
+              .json({ error: "Failed to fetch specialties" });
+          }
+
+          const clinicSpecialtiesMap: Record<string, string[]> = {};
+          results.forEach((row: any) => {
+            if (!clinicSpecialtiesMap[row.user_email]) {
+              clinicSpecialtiesMap[row.user_email] = [];
+            }
+            clinicSpecialtiesMap[row.user_email].push(row.name);
+          });
+
+          const enrichedClinics = finalClinics.map((clinic: any) => ({
+            ...clinic,
+            specialties: clinicSpecialtiesMap[clinic.user_email] || [],
+          }));
+
+          res.status(200).json(enrichedClinics);
+        });
       } catch (error) {
-        console.error("🔥 Error fetching data:", error);
+        console.error("\ud83d\udd25 Error fetching data:", error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
@@ -130,16 +171,73 @@ router.post("/search", async (req, res) => {
 });
 
 router.get("/data/:email", (req, res) => {
-  let email = req.params.email;
-  let sql = "SELECT * FROM clinic WHERE user_email = ?";
+  const email = req.params.email;
+
+  let sql = `
+    SELECT 
+      c.*, 
+      d.careerNo, d.name AS doctor_name, d.image AS doctor_image,
+      s.name AS specialty_name
+    FROM clinic c
+    LEFT JOIN doctor d ON c.user_email = d.user_email
+    LEFT JOIN docspecial ds ON d.careerNo = ds.doctorID
+    LEFT JOIN special s ON ds.specialID = s.special_id
+    WHERE c.user_email = ?
+  `;
+
   sql = mysql.format(sql, [email]);
+
   conn.query(sql, (err, result) => {
-    if (err) throw err;
-    if (result.length > 0) {
-      res.status(200).json(result[0]);
-    } else {
-      res.status(404).json({ message: "User not found" });
+    if (err)
+      return res.status(500).json({ error: "Database error", details: err });
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Clinic not found" });
     }
+
+    // Extract clinic info from first row
+    const clinic = {
+      user_email: result[0].user_email,
+      name: result[0].name,
+      phone: result[0].phone,
+      address: result[0].address,
+      lat: result[0].lat,
+      lng: result[0].lng,
+      image: result[0].image,
+      open: result[0].open,
+      close: result[0].close,
+      numPerTime: result[0].numPerTime,
+      fcmToken: result[0].fcmToken,
+    };
+
+    // Group doctors by careerNo
+    const doctorMap = new Map();
+
+    for (const row of result) {
+      if (!row.careerNo) continue;
+
+      if (!doctorMap.has(row.careerNo)) {
+        doctorMap.set(row.careerNo, {
+          careerNo: row.careerNo,
+          name: row.doctor_name,
+          phone: row.doctor_phone,
+          image: row.doctor_image,
+          specialties: [],
+        });
+      }
+
+      const doctor = doctorMap.get(row.careerNo);
+      if (
+        row.specialty_name &&
+        !doctor.specialties.includes(row.specialty_name)
+      ) {
+        doctor.specialties.push(row.specialty_name);
+      }
+    }
+
+    const doctors = Array.from(doctorMap.values());
+
+    res.status(200).json({ clinic, doctors });
   });
 });
 

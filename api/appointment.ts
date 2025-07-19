@@ -26,7 +26,6 @@ router.get("/", (req, res) => {
   });
 });
 
-
 const queryAsync = (query: string, params: any[] = []): Promise<any[]> => {
   return new Promise((resolve, reject) => {
     conn.query(query, params, (err: any, results: any[]) => {
@@ -37,7 +36,7 @@ const queryAsync = (query: string, params: any[] = []): Promise<any[]> => {
 };
 
 router.post("/dataList", async (req, res) => {
-    interface DataRequest {
+  interface DataRequest {
     email: string;
     dogId: number[];
     aid: number[];
@@ -66,11 +65,13 @@ router.post("/dataList", async (req, res) => {
     // Execute injection and appointment queries in parallel
     const [injectionResult, aidResult] = await Promise.all([
       queryAsync(injectionAidQuery),
-      queryAsync(aidQuery)
+      queryAsync(aidQuery),
     ]);
 
     // Process injection results
-    const injectionAids = injectionResult.map((row: any) => row.oldAppointment_aid);
+    const injectionAids = injectionResult.map(
+      (row: any) => row.oldAppointment_aid
+    );
 
     // Get dog IDs from appointments
     const appointmentDogIds = aidResult.map((a: any) => a.dogId);
@@ -78,14 +79,19 @@ router.post("/dataList", async (req, res) => {
 
     // Prepare dog query
     const dogQuery = mysql.format("SELECT * FROM dog WHERE dogId IN (?)", [
-      combinedDogIds.length > 0 ? combinedDogIds : [-1]
+      combinedDogIds.length > 0 ? combinedDogIds : [-1],
     ]);
 
     // Execute dog and clinic queries in parallel
     const [dogResult, clinicResult] = await Promise.all([
       queryAsync(dogQuery),
-      queryAsync(clinicQuery)
+      queryAsync(clinicQuery),
     ]);
+
+    const today = new Date().toLocaleDateString("sv-SE", {
+      timeZone: "Asia/Bangkok",
+    });
+    const todayDate = new Date(today);
 
     // Process appointments (convert dates and update status)
     const updatedAppointments = aidResult.map((appointment: any) => {
@@ -93,16 +99,24 @@ router.post("/dataList", async (req, res) => {
       const isInSentAid = data.aid.includes(aid);
       const hasInjectionRecord = injectionAids.includes(aid);
 
-      // Convert appointment.date to Asia/Bangkok timezone
       if (appointment.date) {
-        appointment.date = new Date(appointment.date).toLocaleDateString("sv-SE", {
-          timeZone: "Asia/Bangkok"
-        });
-      }
+  // Convert to local date in Asia/Bangkok
+  const originalDate = new Date(appointment.date);
+  const localDateStr = originalDate.toLocaleDateString("sv-SE", {
+    timeZone: "Asia/Bangkok",
+  });
+
+  const localDate = new Date(localDateStr);
+
+  appointment.date = localDate.toLocaleDateString("sv-SE", {
+    timeZone: "Asia/Bangkok",
+  });
+}
 
       if (!isInSentAid && !hasInjectionRecord) {
         return { ...appointment, status: 0 };
       }
+
       return appointment;
     });
 
@@ -110,7 +124,7 @@ router.post("/dataList", async (req, res) => {
     dogResult.forEach((dog: any) => {
       if (dog.birthday) {
         dog.birthday = new Date(dog.birthday).toLocaleDateString("sv-SE", {
-          timeZone: "Asia/Bangkok"
+          timeZone: "Asia/Bangkok",
         });
       }
     });
@@ -120,10 +134,9 @@ router.post("/dataList", async (req, res) => {
       appointments: updatedAppointments,
       clinics: clinicResult,
     });
-
   } catch (error) {
-    console.error('Database error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

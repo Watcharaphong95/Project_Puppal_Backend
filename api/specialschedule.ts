@@ -55,3 +55,21 @@ router.delete("/:id", (req, res) => {
     res.status(200).json({ message: "✅ Special schedule deleted" });
   });
 });
+
+router.delete("/expired", (req, res) => {
+  const sql = `
+    DELETE FROM clinic_special_schedule 
+    WHERE date < CURDATE()
+  `;
+
+  conn.query(sql, (err, result) => {
+    if (err) {
+      console.error("❌ Delete expired error:", err);
+      return res.status(500).json({ error: "Delete expired failed" });
+    }
+
+    res.status(200).json({ 
+      message: `✅ Deleted ${result.affectedRows} expired special schedule(s)` 
+    });
+  });
+});

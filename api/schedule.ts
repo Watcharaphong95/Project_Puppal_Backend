@@ -25,21 +25,21 @@ router.get("/:email", (req, res) => {
     });
 });
 
-router.put("/:id", (req, res) => {
-  const id = req.params.id;
+router.put("/:email", (req, res) => {
+  const email = req.params.email;
   const schedule: ClinicSchedulePost = req.body;
 
   const sql = `
     UPDATE clinic_schedule
     SET weekdays = ?, open_time = ?, close_time = ?
-    WHERE sid = ?
+    WHERE clinic_email = ?
   `;
 
-  console.log(`Updating schedule with ID: ${id}`, schedule);
+  console.log(`Updating schedule with ID: ${email}`, schedule);
 
   conn.query(
     sql,
-    [schedule.weekdays, schedule.open_time, schedule.close_time, id], // ✅ แก้ให้ตรงกับ SQL
+    [schedule.weekdays, schedule.open_time, schedule.close_time, email], // ✅ แก้ให้ตรงกับ SQL
     (err, result) => {
       if (err) {
         console.error("❌ Update error:", err);

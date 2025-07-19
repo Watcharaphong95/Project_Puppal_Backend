@@ -113,6 +113,8 @@ router.get("/:dogId/:date", (req, res) => {
     date = date.split(' ')[0];
   }
 
+  log("dogId:", dogId, "date:", date);
+
   const sql = `
   SELECT injectionRecord.*, 
          DATE(injectionRecord.date) AS injection_date_only, 
@@ -121,7 +123,7 @@ router.get("/:dogId/:date", (req, res) => {
   JOIN appointment ON appointment.aid = injectionRecord.nextAppointment_aid 
   WHERE appointment.dogId = ? AND DATE(injectionRecord.date) = ?
 `;
-
+log("SQL params:", dogId, date);
 
   conn.query(mysql.format(sql, [dogId, date]), (err, result) => {
     if (err) {

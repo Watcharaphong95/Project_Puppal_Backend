@@ -28,10 +28,10 @@ router.get("/data/:id", (req, res) => {
   });
 });
 
-router.get("/appointmet/:email", (req, res) => {
-  let email = req.params.email;
+router.get("/appointmet/:id", (req, res) => {
+  let id = req.params.id;
   let sql = "SELECT * FROM dog WHERE dogId = ?";
-  sql = mysql.format(sql, [email]);
+  sql = mysql.format(sql, [id]);
   conn.query(sql, (err, result) => {
     if (err) throw err;
     res.status(200).json(result);

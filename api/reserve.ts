@@ -10,6 +10,7 @@ import { ClinicSlotGet } from "../model/clinicSlotGet";
 import { ReserveSpecialCheckPost } from "../model/reserveSpecialCheckPost";
 import { ReserveDoglist } from "../model/reserveDoglist";
 import { sendFCMToken } from "../firebaseNotification";
+import { db } from "../firebaseconnect";
 
 export const router = express.Router();
 
@@ -25,7 +26,7 @@ export const router = express.Router();
 //   const email = req.params.email;
 
 //   let sql = `
-//   SELECT 
+//   SELECT
 //   r.reserveID,
 //     r.date,
 //     r.status,
@@ -48,7 +49,7 @@ export const router = express.Router();
 
 //   UNION
 
-//   SELECT 
+//   SELECT
 //   NULL AS reserveID,
 //     a.date,
 //     0 AS status,
@@ -160,7 +161,7 @@ export const router = express.Router();
 //   ])
 
 //   let sqlCheck = `
-//     SELECT * FROM reserve 
+//     SELECT * FROM reserve
 //     WHERE dog_dogId = ? AND DATE(date) = DATE(?)
 //   `;
 //   sqlCheck = mysql.format(sqlCheck, [reserve.dog_dogId, reserve.date]);
@@ -263,32 +264,6 @@ export const router = express.Router();
 //   });
 // });
 
-// router.post("/doglist", (req, res) => {
-//   let data: ReserveDoglist = req.body;
-
-//   // First, get all dogs of the user
-//   let sql = `
-//     SELECT 
-//       d.*, 
-//       IF(r.dog_dogId IS NOT NULL, 0, 1) AS status 
-//     FROM dog d
-//     LEFT JOIN (
-//       SELECT dog_dogId 
-//       FROM reserve 
-//       WHERE general_email = ? AND DATE(date) = DATE(?) AND status != 0
-//     ) r ON d.dogId = r.dog_dogId
-//     WHERE d.user_email = ?
-//     ORDER BY status desc
-//   `;
-
-//   sql = mysql.format(sql, [data.email, data.date, data.email]);
-
-//   conn.query(sql, (err, result) => {
-//     if (err) throw err;
-//     res.status(201).json({ message: "insert complete" })
-//   })
-// })
-
 // router.get("/:email", (req, res) => {
 //   let email = req.params.email;
 
@@ -311,9 +286,9 @@ export const router = express.Router();
 //   let id = req.params.id;
 
 //   let sql = `
-//     SELECT 
-//   reserve.*, 
-//   general.username, 
+//     SELECT
+//   reserve.*,
+//   general.username,
 //   general.phone,
 //   dog.name,
 //   dog.breed,
@@ -342,7 +317,6 @@ export const router = express.Router();
 //     res.status(200).json(result);
 //   });
 // });
-
 
 // router.put("/:reserveID", (req, res) => {
 //   let reserveID = req.params.reserveID
@@ -382,8 +356,8 @@ export const router = express.Router();
 //   let id = req.params.id;
 
 //   let sql = `
-//     SELECT 
-//       reserve.*, 
+//     SELECT
+//       reserve.*,
 //       general.*,
 //       dog.*
 //     FROM reserve
@@ -433,20 +407,42 @@ export const router = express.Router();
 // });
 
 router.post("/notify/clinic-request", async (req, res) => {
-  const { clinicEmail, userName } = req.body;
+  const { clinicEmail, generalEmail, userName, date } = req.body;
 
   // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [clinicEmail]);
+  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+    clinicEmail,
+  ]);
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 New Appointment Request";
-    const body = `From: ${userName}`;
+    const title = `📥 มีคำขอฉีดยาใหม่ วันที่ ${date}`;
+    const body = `ผู้จอง: ${userName}`;
 
-    await sendFCMToken(token, title, body);
-    res.status(200).json({ message: "Notification sent to clinic" });
+    try {
+      const message = await sendFCMToken(token, title, body);
+
+      // 🔥 เพิ่มข้อมูลลง Firestore
+      const notifyDoc = {
+        senderEmail: generalEmail,
+        receiverEmail: clinicEmail,
+        message,
+        createAt: new Date(),
+      };
+
+      await db.collection("notify").add(notifyDoc);
+      res
+        .status(200)
+        .json({ message: "Notification sent and Firestore saved" });
+    } catch (error) {
+      console.error("Error sending notification or saving Firestore:", error);
+      res
+        .status(500)
+        .json({ message: "Notification or Firestore error", error });
+    }
   });
 });
 
@@ -454,10 +450,14 @@ router.post("/notify/general-reponse", async (req, res) => {
   const { generalEmail, userName } = req.body;
 
   // Get clinic FCM token
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [generalEmail]);
+  const sql = mysql.format(
+    "SELECT fcmToken FROM general WHERE user_email = ?",
+    [generalEmail]
+  );
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
     const title = "📥 Your Request has been accept";
@@ -468,15 +468,18 @@ router.post("/notify/general-reponse", async (req, res) => {
   });
 });
 
-
 router.post("/notify/accept/general-reponse", async (req, res) => {
   const { generalEmail, userName } = req.body;
 
   // Get clinic FCM token
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [generalEmail]);
+  const sql = mysql.format(
+    "SELECT fcmToken FROM general WHERE user_email = ?",
+    [generalEmail]
+  );
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
     const title = "📥 กูรับฉีดยาหมามึงแล้ว";
@@ -491,10 +494,14 @@ router.post("/notify/refuse/general-reponse", async (req, res) => {
   const { generalEmail, userName } = req.body;
 
   // Get clinic FCM token
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [generalEmail]);
+  const sql = mysql.format(
+    "SELECT fcmToken FROM general WHERE user_email = ?",
+    [generalEmail]
+  );
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken) return res.status(404).json({ message: "Clinic token not found" });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
     const title = "📥 กูไม่รับฉีดยาหมามึงไอ้สัส";
@@ -504,7 +511,6 @@ router.post("/notify/refuse/general-reponse", async (req, res) => {
     res.status(200).json({ message: "Notification sent to general" });
   });
 });
-
 
 function generateTimeSlots(
   open: string,

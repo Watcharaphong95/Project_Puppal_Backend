@@ -37,24 +37,65 @@ router.post("/search", async (req, res) => {
     const generalLat = parseFloat(result[0].lat);
     const generalLng = parseFloat(result[0].lng);
 
-    let sql = "SELECT * FROM clinic WHERE user_email != ? AND name LIKE ?";
+    let sql = `SELECT 
+  c.*,
+  cs.weekdays,
+  cs.open_time AS open,
+  cs.close_time AS close,
+  css.date AS special_date
+FROM clinic c
+LEFT JOIN clinic_schedule cs ON c.user_email = cs.clinic_email
+LEFT JOIN clinic_special_schedule css ON c.user_email = css.clinic_email
+WHERE c.user_email != ?
+  AND c.name LIKE ?
+`;
     sql = mysql.format(sql, [search.email, `%${search.word}%`]);
     conn.query(sql, async (err, result) => {
       if (err) throw err;
-      const clinicsWithDistance = result.map((clinic: any) => {
-        const clinicLat = parseFloat(clinic.lat);
-        const clinicLng = parseFloat(clinic.lng);
+      const clinicMap: Record<string, any> = {};
 
-        const distanceMeters = getDistance(
-          { latitude: generalLat, longitude: generalLng },
-          { latitude: clinicLat, longitude: clinicLng }
-        );
+      result.forEach((row: any) => {
+        const key = row.user_email;
 
-        return {
-          ...clinic,
-          distanceKm: distanceMeters / 1000,
-        };
+        // Format special_date
+        let formattedDate = null;
+        if (row.special_date) {
+          const dateObj = new Date(row.special_date);
+          formattedDate = dateObj.toLocaleDateString("sv-SE", {
+            timeZone: "Asia/Bangkok",
+          }); // "YYYY-MM-DD"
+        }
+
+        if (!clinicMap[key]) {
+          clinicMap[key] = {
+            ...row,
+            special_date: formattedDate ? [formattedDate] : [],
+          };
+        } else {
+          if (
+            formattedDate &&
+            !clinicMap[key].special_date.includes(formattedDate)
+          ) {
+            clinicMap[key].special_date.push(formattedDate);
+          }
+        }
       });
+
+      const clinicsWithDistance = Object.values(clinicMap).map(
+        (clinic: any) => {
+          const clinicLat = parseFloat(clinic.lat);
+          const clinicLng = parseFloat(clinic.lng);
+          const distanceMeters = getDistance(
+            { latitude: generalLat, longitude: generalLng },
+            { latitude: clinicLat, longitude: clinicLng }
+          );
+
+          return {
+            ...clinic,
+            distanceKm: distanceMeters / 1000,
+          };
+        }
+      );
 
       clinicsWithDistance.sort((a: any, b: any) => a.distanceKm - b.distanceKm);
 
@@ -174,15 +215,20 @@ router.get("/data/:email", (req, res) => {
   const email = req.params.email;
 
   let sql = `
-    SELECT 
-      c.*, 
-      d.careerNo, d.name AS doctor_name, d.image AS doctor_image,
-      s.name AS specialty_name
-    FROM clinic c
-    LEFT JOIN doctor d ON c.user_email = d.user_email
-    LEFT JOIN docspecial ds ON d.careerNo = ds.doctorID
-    LEFT JOIN special s ON ds.specialID = s.special_id
-    WHERE c.user_email = ?
+   SELECT 
+  c.*,
+  cs.open_time AS open,
+  cs.close_time AS close,
+  d.careerNo,
+  d.name AS doctor_name,
+  d.image AS doctor_image,
+  s.name AS specialty_name
+FROM clinic c
+JOIN clinic_schedule cs ON c.user_email = cs.clinic_email
+LEFT JOIN doctor d ON c.user_email = d.user_email
+LEFT JOIN docspecial ds ON d.careerNo = ds.doctorID
+LEFT JOIN special s ON ds.specialID = s.special_id
+WHERE c.user_email = ?
   `;
 
   sql = mysql.format(sql, [email]);
@@ -257,7 +303,8 @@ router.get("/name/:email", (req, res) => {
 
 router.get("/slotAll/:email", (req, res) => {
   let email = req.params.email;
-  let sql = "SELECT open, close, numPerTime FROM clinic WHERE user_email = ?";
+  let sql =
+    "SELECT open_time AS open, close_time AS close, numPerTime FROM clinic, clinic_schedule WHERE clinic.user_email = clinic_schedule.clinic_email AND user_email = ?";
   sql = mysql.format(sql, [email]);
   conn.query(sql, (err, result) => {
     if (err) throw err;
@@ -297,7 +344,7 @@ router.post("/slot", async (req, res) => {
       .where("date", "<=", end)
       .get();
 
-    let sql = "SELECT open, close, numPerTime FROM clinic WHERE user_email = ?";
+    let sql = "SELECT open_time AS open, close_time AS close, numPerTime FROM clinic, clinic_schedule WHERE clinic.user_email = clinic_schedule.clinic_email AND user_email = ?";
     sql = mysql.format(sql, [input.email]);
 
     conn.query(sql, (err, result) => {

@@ -81,6 +81,10 @@ WHERE c.user_email != ?
         }
       });
 
+      const nowInBangkok = moment(search.date).tz("Asia/Bangkok");
+      const todayName = nowInBangkok.format("dddd"); // เช่น "Monday"
+      const todayStr = nowInBangkok.format("YYYY-MM-DD"); // เช่น "2025-07-21"
+
       const clinicsWithDistance = Object.values(clinicMap).map(
         (clinic: any) => {
           const clinicLat = parseFloat(clinic.lat);
@@ -90,14 +94,31 @@ WHERE c.user_email != ?
             { latitude: clinicLat, longitude: clinicLng }
           );
 
+          // เช็ควันเปิด
+          const openDays = clinic.weekdays ? clinic.weekdays.split(",") : [];
+          const isOpenToday = openDays.includes(todayName);
+
+          // เช็ควันปิดพิเศษ (special_date เป็น array)
+          const specialDates = clinic.special_date || []; // เช่น ['2025-07-21']
+          // console.log(todayName);
+          // console.log(todayStr);
+
+          const isClosedSpecial = specialDates.includes(todayStr);
+
           return {
             ...clinic,
             distanceKm: distanceMeters / 1000,
+            toDayOpen: isOpenToday && !isClosedSpecial, // เปิดวันนี้และไม่ตรงวันหยุด
           };
         }
       );
 
-      clinicsWithDistance.sort((a: any, b: any) => a.distanceKm - b.distanceKm);
+      // เรียง: เปิดวันนี้ก่อน → แล้วเรียงตามระยะทาง
+      clinicsWithDistance.sort((a, b) => {
+        if (a.toDayOpen && !b.toDayOpen) return -1;
+        if (!a.toDayOpen && b.toDayOpen) return 1;
+        return a.distanceKm - b.distanceKm;
+      });
 
       const formattedClinics = clinicsWithDistance.map((clinic: any) => ({
         ...clinic,
@@ -344,7 +365,8 @@ router.post("/slot", async (req, res) => {
       .where("date", "<=", end)
       .get();
 
-    let sql = "SELECT open_time AS open, close_time AS close, numPerTime FROM clinic, clinic_schedule WHERE clinic.user_email = clinic_schedule.clinic_email AND user_email = ?";
+    let sql =
+      "SELECT open_time AS open, close_time AS close, numPerTime FROM clinic, clinic_schedule WHERE clinic.user_email = clinic_schedule.clinic_email AND user_email = ?";
     sql = mysql.format(sql, [input.email]);
 
     conn.query(sql, (err, result) => {

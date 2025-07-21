@@ -41,7 +41,6 @@ LEFT JOIN appointment AS nextApp ON injectionRecord.nextAppointment_aid = nextAp
   JOIN doctor ON injectionRecord.doctorCareerNo = doctor.careerNo
   JOIN clinic ON injectionRecord.clinic_email = clinic.user_email
   JOIN clinic_schedule ON injectionRecord.clinic_email = clinic_schedule.clinic_email
-
   WHERE 
     dog.dogId = ?
 `;

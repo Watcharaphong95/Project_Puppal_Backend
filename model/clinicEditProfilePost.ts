@@ -1,11 +1,10 @@
 // To parse this data:
 //
-//   import { Convert, ClinicPost } from "./file";
+//   import { Convert } from "./file";
 //
-//   const clinicPost = Convert.toClinicPost(json);
+//   const clinicEditProfilePost = Convert.toClinicEditProfilePost(json);
 
-export interface ClinicPost {
-    user_email: string;
+export interface ClinicEditProfilePost {
     name:       string;
     phone:      string;
     address:    string;
@@ -17,11 +16,11 @@ export interface ClinicPost {
 
 // Converts JSON strings to/from your types
 export class Convert {
-    public static toClinicPost(json: string): ClinicPost {
+    public static toClinicEditProfilePost(json: string): ClinicEditProfilePost[] {
         return JSON.parse(json);
     }
 
-    public static clinicPostToJson(value: ClinicPost): string {
+    public static clinicEditProfilePostToJson(value: ClinicEditProfilePost[]): string {
         return JSON.stringify(value);
     }
 }

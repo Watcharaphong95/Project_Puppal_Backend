@@ -2,6 +2,7 @@ import express from "express";
 import { conn } from "../dbconnect";
 import { ClinicSchedulePost } from "../model/clinicSchedulePost";
 import { log } from "firebase-functions/logger";
+import mysql from "mysql";
 
 
 export const router = express.Router();
@@ -48,5 +49,37 @@ router.put("/:email", (req, res) => {
       res.status(200).json({ message: "✅ Schedule updated", result });
     }
   );
+});
+
+
+router.post("/", (req, res) => {
+  const schedule: ClinicSchedulePost = req.body;
+
+
+
+  // SQL
+  const sql = mysql.format(
+    "INSERT INTO clinic_schedule (clinic_email, weekdays, open_time, close_time) VALUES (?, ?, ?, ?)",
+    [
+      schedule.clinic_email,
+      schedule.weekdays, // สมมติเป็น String เช่น 'Mon,Tue,Wed'
+      schedule.open_time,
+      schedule.close_time,
+    ]
+  );
+  console.log('Received schedule data:', schedule);
+
+
+  conn.query(sql, (err, result) => {
+    if (err) {
+      console.error("❌ MySQL Insert Error:", err);
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    res.status(201).json({
+      message: "Insert success",
+      insertId: result.insertId,
+    });
+  });
 });
 

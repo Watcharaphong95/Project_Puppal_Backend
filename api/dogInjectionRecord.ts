@@ -24,7 +24,9 @@ router.get("/dogId/:id", (req, res) => {
     dog.image AS dog_image,
     injectionRecord.rid, injectionRecord.vaccine as injectionVaccine, injectionRecord.date as injectionDate, injectionRecord.rid, injectionRecord.vaccine_label,injectionRecord.type as recordType,
     doctor.careerNo, doctor.name as doctorName, doctor.surname as doctorSurname, doctor.image AS doctor_image,
-    clinic.user_email as clinicEmail, clinic.name as clinicName, clinic.phone, clinic.address, clinic.open, clinic.close,clinic.image AS clinic_image,
+    clinic.user_email as clinicEmail, clinic.name as clinicName, clinic.phone, clinic.address, clinic.image AS clinic_image,
+    clinic_schedule.open_time AS open,
+    clinic_schedule.close_time AS close,
     oldApp.aid AS old_aid,
     oldApp.date AS old_date,
     oldApp.vaccine AS old_vaccine,
@@ -38,6 +40,7 @@ LEFT JOIN appointment AS nextApp ON injectionRecord.nextAppointment_aid = nextAp
   JOIN dog ON oldApp.dogId = dog.dogId
   JOIN doctor ON injectionRecord.doctorCareerNo = doctor.careerNo
   JOIN clinic ON injectionRecord.clinic_email = clinic.user_email
+  JOIN clinic_schedule ON injectionRecord.clinic_email = clinic_schedule.clinic_email
   WHERE 
     dog.dogId = ?
 `;

@@ -124,7 +124,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `📥 คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${formattedTime} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
+    const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${formattedTime} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
     const body = `คลินิกฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว`;
 
     try {
@@ -166,7 +166,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `📥 คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${formattedTime}`;
+    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${date} ${formattedTime}`;
     const body = `คลินิกปฏิเสธคำขอฉีดวัคซีนของคุณ`;
 
     try {
@@ -209,7 +209,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `📥 คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${formattedTime}`;
+    const title = `✅ คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${date} ${formattedTime}`;
     const body = `คลินิก: ${userName} ได้ตอบรับคำขอของคุณ`;
 
     try {
@@ -312,7 +312,7 @@ router.post("/notify/injectioncompleted/general-reponse", async (req, res) => {
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 สุนัขได้รับการฉีดวัคซันกับคลินิกเสร็จสิ้นแล้ว";
+    const title = "✅ สุนัขได้รับการฉีดวัคซันกับคลินิกเสร็จสิ้นแล้ว";
     const body = `From: ${userName}`;
 
     await sendFCMToken(token, title, body);
@@ -334,7 +334,7 @@ router.post("/notify/accept/general-reponse", async (req, res) => {
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 คลินิกได้ตอบรับคำขอจากคุณแล้ว";
+    const title = "✅ คลินิกได้ตอบรับคำขอจากคุณแล้ว";
     const body = `From: ${userName}`;
 
     await sendFCMToken(token, title, body);
@@ -356,7 +356,7 @@ router.post("/notify/refuse/general-reponse", async (req, res) => {
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 คลินิกปฏิเสธคำขอของคุณ ขออภัยในความไม่สะดวก";
+    const title = "❌ คลินิกปฏิเสธคำขอของคุณ ขออภัยในความไม่สะดวก";
     const body = `From: ${userName}`;
 
     await sendFCMToken(token, title, body);

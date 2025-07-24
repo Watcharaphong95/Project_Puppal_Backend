@@ -14,6 +14,7 @@ import { db } from "../firebaseconnect";
 
 
 export const router = express.Router();
+
 import { Request, Response } from "express";
 import dayjs from "dayjs";
 import { log } from "firebase-functions/logger";
@@ -126,7 +127,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `📥 คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${formattedTime}`;
+    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${formattedTime}`;
     const body = `คลินิกปฏิเสธคำขอฉีดวัคซีนของคุณ`;
 
     try {
@@ -140,7 +141,7 @@ log("clinicEmail :" ,clinicEmail)
         createAt: new Date(),
       };
 
-      await db.collection("notify").add(notifyDoc);
+      await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });
@@ -183,7 +184,7 @@ log("clinicEmail :" ,clinicEmail)
         createAt: new Date(),
       };
 
-      await db.collection("notify").add(notifyDoc);
+      await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });
@@ -224,7 +225,47 @@ router.post("/notify/clinic-request", async (req, res) => {
         createAt: new Date(),
       };
 
-      await db.collection("notify").add(notifyDoc);
+      await db.collection("clinicNotifications").add(notifyDoc);
+      res
+        .status(200)
+        .json({ message: "Notification sent and Firestore saved" });
+    } catch (error) {
+      console.error("Error sending notification or saving Firestore:", error);
+      res
+        .status(500)
+        .json({ message: "Notification or Firestore error", error });
+    }
+  });
+});
+
+router.post("/notify/clinic-reject", async (req, res) => {
+  const { clinicEmail, generalEmail, userName, date } = req.body;
+
+  // Get clinic FCM token test
+  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+    clinicEmail,
+  ]);
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = `❌ ยกเลิกวันจอง วันที่ ${date}`;
+    const body = `ผู้จอง: ${userName} ยกเลิกวันจอง วันที่ ${date}`;
+
+    try {
+      const message = await sendFCMToken(token, title, body);
+
+      // 🔥 เพิ่มข้อมูลลง Firestore
+      const notifyDoc = {
+        senderEmail: generalEmail,
+        receiverEmail: clinicEmail,
+        message,
+        createAt: new Date(),
+      };
+
+      await db.collection("clinicNotifications").add(notifyDoc);
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });

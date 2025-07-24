@@ -115,12 +115,12 @@ router.get("/nextVaccine/:email", (req, res) => {
 router.post("/", (req, res) => {
   let dog: DogPost = req.body;
 
-  const [day, month, year] = dog.birthday.split("-");
-  const formattedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(
-    2,
-    "0"
-  )}`;
-  console.log(formattedDate);
+  // const [day, month, year] = dog.birthday.split("-");
+  // const formattedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(
+  //   2,
+  //   "0"
+  // )}`;
+  // console.log(formattedDate);
 
   let sql =
     "INSERT INTO dog (user_email, name, breed, gender, color, defect, birthday, congentialDisease, sterilization, hair, image) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
@@ -131,7 +131,7 @@ router.post("/", (req, res) => {
     dog.gender,
     dog.color,
     dog.defect,
-    formattedDate,
+    dog.birthday,
     dog.congentialDisease,
     dog.sterilization,
     dog.hair,

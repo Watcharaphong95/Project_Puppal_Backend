@@ -163,6 +163,7 @@ WHERE c.user_email != ?
 
         const finalClinics = formattedClinics.map((clinic: any) => {
           const clinicEmail = clinic.user_email;
+
           const numPerTime = clinic.numPerTime;
           const timeCounts = clinicTimeCounts[clinicEmail] || {};
           const allTimeSlots = generateTimeSlots(clinic.open, clinic.close, 30);
@@ -453,10 +454,12 @@ function generateTimeSlots(
   gapMinutes: number,
   filledSlots: string[] = []
 ): string[] {
+  const openTime = open ?? "09:00";   // Default if null
+  const closeTime = close ?? "17:00"; // Default if null
   const slots: string[] = [];
 
-  const [openHour, openMinute] = open.split(":").map(Number);
-  const [closeHour, closeMinute] = close.split(":").map(Number);
+  const [openHour, openMinute] = openTime.split(":").map(Number);
+  const [closeHour, closeMinute] = closeTime.split(":").map(Number);
 
   let current = new Date(0, 0, 0, openHour, openMinute);
   const end = new Date(0, 0, 0, closeHour, closeMinute);

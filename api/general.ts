@@ -96,7 +96,7 @@ router.put("/", (req, res) => {
 
   conn.query(sql, (err, result) => {
     if (err) throw err;
-    res.status(201).json({ message: "update success" });
+    res.status(200).json({ message: "update success" });
   });
 });
 
@@ -107,7 +107,7 @@ router.put("/location", (req, res) => {
 
   conn.query(sql, (err, result) => {
     if (err) throw err;
-    res.status(201).json({ message: "update success" });
+    res.status(200).json({ message: "update success" });
   });
 });
 

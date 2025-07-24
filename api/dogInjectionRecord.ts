@@ -18,32 +18,59 @@ router.get("/", (req, res) => {
 
 router.get("/dogId/:id", (req, res) => {
   const id = req.params.id;
+
   let sql = `
   SELECT 
-    dog.name as dogName, dog.breed as dogBreed, dog.gender as dogGender, dog.color as dogColor, dog.defect as dogDefect, dog.birthday as dogBirthday, dog.congentialDisease as dogCongentialDisease, dog.sterilization as dogSterilization, dog.hair as dogHair,
+    dog.name AS dogName,
+    dog.breed AS dogBreed,
+    dog.gender AS dogGender,
+    dog.color AS dogColor,
+    dog.defect AS dogDefect,
+    dog.birthday AS dogBirthday,
+    dog.congentialDisease AS dogCongentialDisease,
+    dog.sterilization AS dogSterilization,
+    dog.hair AS dogHair,
     dog.image AS dog_image,
-    injectionRecord.rid, injectionRecord.vaccine as injectionVaccine, injectionRecord.date as injectionDate, injectionRecord.rid, injectionRecord.vaccine_label,injectionRecord.type as recordType,
-    doctor.careerNo, doctor.name as doctorName, doctor.surname as doctorSurname, doctor.image AS doctor_image,
-    clinic.user_email as clinicEmail, clinic.name as clinicName, clinic.phone, clinic.address, clinic.image AS clinic_image,
+
+    injectionRecord.rid,
+    injectionRecord.vaccine AS injectionVaccine,
+    injectionRecord.date AS injectionDate,
+    injectionRecord.vaccine_label,
+    injectionRecord.type AS recordType,
+
+    doctor.careerNo,
+    doctor.name AS doctorName,
+    doctor.surname AS doctorSurname,
+    doctor.image AS doctor_image,
+
+    clinic.user_email AS clinicEmail,
+    clinic.name AS clinicName,
+    clinic.phone,
+    clinic.address,
+    clinic.image AS clinic_image,
+
     clinic_schedule.open_time AS open,
     clinic_schedule.close_time AS close,
+
     oldApp.aid AS old_aid,
     oldApp.date AS old_date,
     oldApp.vaccine AS old_vaccine,
+
     nextApp.aid AS next_aid,
     nextApp.date AS next_date,
     nextApp.vaccine AS next_vaccine
-  FROM 
-  injectionRecord
-LEFT JOIN appointment AS oldApp ON injectionRecord.oldAppointment_aid = oldApp.aid
-LEFT JOIN appointment AS nextApp ON injectionRecord.nextAppointment_aid = nextApp.aid
-  JOIN dog ON oldApp.dogId = dog.dogId
-  JOIN doctor ON injectionRecord.doctorCareerNo = doctor.careerNo
-  JOIN clinic ON injectionRecord.clinic_email = clinic.user_email
-  JOIN clinic_schedule ON injectionRecord.clinic_email = clinic_schedule.clinic_email
-  WHERE 
-    dog.dogId = ?
-`;
+
+  FROM injectionRecord
+  LEFT JOIN appointment AS oldApp ON injectionRecord.oldAppointment_aid = oldApp.aid
+  LEFT JOIN appointment AS nextApp ON injectionRecord.nextAppointment_aid = nextApp.aid
+  LEFT JOIN dog ON COALESCE(oldApp.dogId, nextApp.dogId) = dog.dogId
+  LEFT JOIN doctor ON injectionRecord.doctorCareerNo = doctor.careerNo
+  LEFT JOIN clinic ON injectionRecord.clinic_email = clinic.user_email
+  LEFT JOIN clinic_schedule ON injectionRecord.clinic_email = clinic_schedule.clinic_email
+
+  WHERE dog.dogId = ?
+  ORDER BY injectionRecord.date DESC
+  `;
 
   sql = mysql.format(sql, [id]);
 
@@ -65,11 +92,19 @@ LEFT JOIN appointment AS nextApp ON injectionRecord.nextAppointment_aid = nextAp
             timeZone: "Asia/Bangkok",
           })
         : null,
+      injectionDate: row.injectionDate
+        ? new Date(row.injectionDate).toLocaleString("sv-SE", {
+            timeZone: "Asia/Bangkok",
+          })
+        : null,
     }));
 
     res.status(200).json(adjusted);
   });
 });
+
+
+
 
 router.get("/all/:email", (req, res) => {
   let email = req.params.email;

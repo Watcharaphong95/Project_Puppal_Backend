@@ -205,11 +205,27 @@ router.get("/sendotp/:email", async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"PUPPAL" <65011212077@msu.ac.th>`,
-      to: email,
-      subject: "Your OTP Code",
-      html: `<p>Your OTP code is: <b>${otp}</b></p>`,
-    };
+  from: `"PUPPAL" <65011212077@msu.ac.th>`,
+  to: email,
+  subject: "🔐 รหัสยืนยันตัวตน (OTP) ของคุณ",
+  html: `
+    <div style="font-family: 'Sarabun', Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #fdfaf7;">
+      <h2 style="color: #916B44; text-align: center;">🐶 รีเซ็ตรหัสผ่าน PUPPAL</h2>
+      <p style="font-size: 16px; color: #333;">รหัสยืนยันตัวตนสำหรับเปลี่ยนรหัสผ่าน (OTP) ของคุณคือ</p>
+      <div style="text-align: center; margin: 20px 0;">
+        <span style="font-size: 28px; font-weight: bold; color: #916B44; background-color: #fff; padding: 10px 20px; border: 2px dashed #916B44; border-radius: 8px;">
+          ${otp}
+        </span>
+      </div>
+      <p style="font-size: 14px; color: #777;">รหัสนี้จะหมดอายุภายใน 5 นาที กรุณาอย่าเปิดเผยรหัสนี้ให้ผู้อื่นทราบ</p>
+      <p style="font-size: 14px; color: #777;">หากคุณไม่ได้ร้องขอรหัสนี้ กรุณาละเว้นอีเมลฉบับนี้</p>
+      <hr style="border: none; border-top: 1px solid #eee;" />
+      <p style="text-align: center; font-size: 12px; color: #aaa;">&copy; 2025 ทีมงาน PUPPAL</p>
+    </div>
+  `,
+};
+
+
 
     await transporter.sendMail(mailOptions);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);

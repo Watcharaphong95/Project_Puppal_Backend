@@ -47,14 +47,16 @@ router.post("/dataList", async (req, res) => {
     const data = req.body;
 
     // Prepare all queries
+    const clinicEmails = data.clinicEmail.length > 0 ? data.clinicEmail : ["-"];
     const clinicQuery = mysql.format(
       "SELECT * FROM clinic WHERE user_email IN (?)",
-      [data.clinicEmail]
+      [clinicEmails]
     );
 
+    const aidArray = data.aid.length > 0 ? data.aid : [-1];
     const injectionAidQuery = mysql.format(
       "SELECT DISTINCT oldAppointment_aid FROM injectionRecord WHERE oldAppointment_aid IN (?)",
-      [data.aid]
+      [aidArray]
     );
 
     const aidQuery = mysql.format(
@@ -100,18 +102,18 @@ router.post("/dataList", async (req, res) => {
       const hasInjectionRecord = injectionAids.includes(aid);
 
       if (appointment.date) {
-  // Convert to local date in Asia/Bangkok
-  const originalDate = new Date(appointment.date);
-  const localDateStr = originalDate.toLocaleDateString("sv-SE", {
-    timeZone: "Asia/Bangkok",
-  });
+        // Convert to local date in Asia/Bangkok
+        const originalDate = new Date(appointment.date);
+        const localDateStr = originalDate.toLocaleDateString("sv-SE", {
+          timeZone: "Asia/Bangkok",
+        });
 
-  const localDate = new Date(localDateStr);
+        const localDate = new Date(localDateStr);
 
-  appointment.date = localDate.toLocaleDateString("sv-SE", {
-    timeZone: "Asia/Bangkok",
-  });
-}
+        appointment.date = localDate.toLocaleDateString("sv-SE", {
+          timeZone: "Asia/Bangkok",
+        });
+      }
 
       if (!isInSentAid && !hasInjectionRecord) {
         return { ...appointment, status: 0 };
@@ -192,8 +194,8 @@ router.post("/", (req, res) => {
     app.vaccine,
     formattedDate,
   ]);
-console.log("SQL Query:", sql);
-console.time("insertAppointment");
+  console.log("SQL Query:", sql);
+  console.time("insertAppointment");
   conn.query(sql, (err, result) => {
     console.timeEnd("insertAppointment");
     if (err) {
@@ -217,15 +219,15 @@ router.put("/:aid", (req, res) => {
       res.status(201).json({ affected_Rows: result.affectedRows });
     }
   });
-})
+});
 
 router.get("/latestdate/:aids/:email", (req, res) => {
   const aidsParam = req.params.aids; // '32,56'
   const email = req.params.email;
 
-  const aidsArray = aidsParam.split(',').map(aid => parseInt(aid.trim()));
+  const aidsArray = aidsParam.split(",").map((aid) => parseInt(aid.trim()));
 
-  const placeholders = aidsArray.map(() => '?').join(',');
+  const placeholders = aidsArray.map(() => "?").join(",");
 
   const sql = `
     SELECT dogId, general_user_email, MAX(date) as latest_date, GROUP_CONCAT(DISTINCT vaccine SEPARATOR ', ') AS vaccines
@@ -245,7 +247,3 @@ router.get("/latestdate/:aids/:email", (req, res) => {
     res.status(200).json({ data: result });
   });
 });
-
-
-
-

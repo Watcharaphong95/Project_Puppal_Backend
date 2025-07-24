@@ -110,7 +110,47 @@ router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) 
 });
 
 
+router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
+  const { clinicEmail, generalEmail, userName, date } = req.body;
+  const formattedTime = dayjs(date).format("HH:mm"); 
 
+log("clinicEmail :" ,clinicEmail)
+  // Get clinic FCM token test
+  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+    clinicEmail,
+  ]);
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${formattedTime} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
+    const body = `คลินิกฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว`;
+
+    try {
+      const message = await sendFCMToken(token, title, body);
+
+      // 🔥 เพิ่มข้อมูลลง Firestore
+      const notifyDoc = {
+        senderEmail: clinicEmail,
+        receiverEmail: generalEmail,
+        message,
+        createAt: new Date(),
+      };
+
+      await db.collection("generalNotifications").add(notifyDoc);
+      res
+        .status(200)
+        .json({ message: "Notification sent and Firestore saved" });
+    } catch (error) {
+      console.error("Error sending notification or saving Firestore:", error);
+      res
+        .status(500)
+        .json({ message: "Notification or Firestore error", error });
+    }
+  });
+});
 
 router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
@@ -127,7 +167,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${formattedTime}`;
+    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${date} ${formattedTime}`;
     const body = `คลินิกปฏิเสธคำขอฉีดวัคซีนของคุณ`;
 
     try {
@@ -135,12 +175,13 @@ log("clinicEmail :" ,clinicEmail)
 
       // 🔥 เพิ่มข้อมูลลง Firestore
       const notifyDoc = {
-        senderEmail: generalEmail,
-        receiverEmail: clinicEmail,
+        senderEmail: clinicEmail,
+        receiverEmail: generalEmail,
         message,
         createAt: new Date(),
       };
 
+      await db.collection("generalNotifications").add(notifyDoc);
       await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)
@@ -170,7 +211,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `📥 คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${formattedTime}`;
+    const title = `✅ คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${date} ${formattedTime}`;
     const body = `คลินิก: ${userName} ได้ตอบรับคำขอของคุณ`;
 
     try {
@@ -178,12 +219,13 @@ log("clinicEmail :" ,clinicEmail)
 
       // 🔥 เพิ่มข้อมูลลง Firestore
       const notifyDoc = {
-        senderEmail: generalEmail,
-        receiverEmail: clinicEmail,
+        senderEmail: clinicEmail,
+        receiverEmail: generalEmail,
         message,
         createAt: new Date(),
       };
 
+      await db.collection("generalNotifications").add(notifyDoc);
       await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)
@@ -299,6 +341,27 @@ router.post("/notify/general-reponse", async (req, res) => {
     res.status(200).json({ message: "Notification sent to general" });
   });
 });
+router.post("/notify/injectioncompleted/general-reponse", async (req, res) => {
+  const { generalEmail, userName } = req.body;
+
+  // Get clinic FCM token
+  const sql = mysql.format(
+    "SELECT fcmToken FROM general WHERE user_email = ?",
+    [generalEmail]
+  );
+  conn.query(sql, async (err, results) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    if (results.length === 0 || !results[0].fcmToken)
+      return res.status(404).json({ message: "Clinic token not found" });
+
+    const token = results[0].fcmToken;
+    const title = "✅ สุนัขได้รับการฉีดวัคซันกับคลินิกเสร็จสิ้นแล้ว";
+    const body = `From: ${userName}`;
+
+    await sendFCMToken(token, title, body);
+    res.status(200).json({ message: "Notification sent to general" });
+  });
+});
 
 router.post("/notify/accept/general-reponse", async (req, res) => {
   const { generalEmail, userName } = req.body;
@@ -314,7 +377,7 @@ router.post("/notify/accept/general-reponse", async (req, res) => {
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 คลินิกได้ตอบรับคำขอจากคุณแล้ว";
+    const title = "✅ คลินิกได้ตอบรับคำขอจากคุณแล้ว";
     const body = `From: ${userName}`;
 
     await sendFCMToken(token, title, body);
@@ -336,7 +399,7 @@ router.post("/notify/refuse/general-reponse", async (req, res) => {
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = "📥 คลินิกปฏิเสธคำขอของคุณ ขออภัยในความไม่สะดวก";
+    const title = "❌ คลินิกปฏิเสธคำขอของคุณ ขออภัยในความไม่สะดวก";
     const body = `From: ${userName}`;
 
     await sendFCMToken(token, title, body);

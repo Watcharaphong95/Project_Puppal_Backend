@@ -8,6 +8,16 @@ import { DogsEmailGet } from "../model/dogEmailGet";
 
 export const router = express.Router();
 
+router.get("/getdog/:id", (req, res) => {
+  let id = req.params.id;
+  let sql = "SELECT * FROM dog WHERE dogId = ?";
+  sql = mysql.format(sql, [id]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json(result);
+  });
+});
+
 router.get("/:email", (req, res) => {
   let email = req.params.email;
   let sql = "SELECT * FROM dog WHERE user_email = ?";

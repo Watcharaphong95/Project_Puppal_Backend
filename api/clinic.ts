@@ -9,6 +9,7 @@ import { ClinicSlotGet } from "../model/clinicSlotGet";
 import { ClinicSlotPost } from "../model/clinicSlotPost";
 import moment from "moment-timezone";
 import { FcmTokenPost } from "../model/fcmTokenPost";
+import { ClinicEditProfilePost } from "../model/clinicEditProfilePost";
 
 export const router = express.Router();
 
@@ -19,6 +20,41 @@ router.get("/", async (req, res) => {
     res.status(200).json(result);
   });
 });
+
+router.get("/profile/:email", async (req, res) => {
+  let email = req.params.email;
+  let sql = "SELECT * FROM clinic WHERE user_email = ? ";
+  conn.query(sql,[email], (err, result) => {
+    if (err) throw err;
+    res.status(200).json(result);
+  });
+});
+
+router.put("/update/:email", (req, res) => {
+  const email = req.params.email;
+  const data: ClinicEditProfilePost = req.body;
+
+  const sql = `
+    UPDATE clinic
+    SET name=?, phone=?, address=?, lat=?, lng=?, image=?, numPerTime=?
+    WHERE user_email=?
+  `;
+
+  console.log(`Updating schedule with ID: ${email}`, data);
+
+  conn.query(
+    sql,
+    [data.name, data.phone, data.address, data.lat, data.lng, data.image, data.numPerTime, email],
+    (err, result) => {
+      if (err) {
+        console.error("❌ Update error:", err);
+        return res.status(500).json({ error: "Database update failed" });
+      }
+      res.status(200).json({ message: "✅ Schedule updated", result });
+    }
+  );
+});
+
 
 router.get("/allSpecial", async (req, res) => {
   let sql = "SELECT * FROM special";
@@ -428,7 +464,7 @@ router.post("/slot", async (req, res) => {
 router.post("/", (req, res) => {
   let clinic: ClinicPost = req.body;
   let sql =
-    "INSERT INTO clinic (user_email, name, phone, address, lat, lng, image, open, close, numPerTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    "INSERT INTO clinic (user_email, name, phone, address, lat, lng, image, numPerTime) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)";
   sql = mysql.format(sql, [
     clinic.user_email,
     clinic.name,
@@ -437,8 +473,6 @@ router.post("/", (req, res) => {
     clinic.lat,
     clinic.lng,
     clinic.image,
-    clinic.open,
-    clinic.close,
     clinic.numPerTime,
   ]);
 

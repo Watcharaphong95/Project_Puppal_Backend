@@ -172,7 +172,7 @@ router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
   const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    clinicEmail,
+    generalEmail,
   ]);
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
@@ -215,7 +215,7 @@ router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
   const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    clinicEmail,
+    generalEmail,
   ]);
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
@@ -238,7 +238,7 @@ log("clinicEmail :" ,clinicEmail)
       };
 
       await db.collection("generalNotifications").add(notifyDoc);
-      await db.collection("generalNotifications").add(notifyDoc);
+
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });
@@ -261,7 +261,7 @@ log("clinicEmail :" ,clinicEmail)
 
   // Get clinic FCM token test
   const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    clinicEmail,
+    generalEmail,
   ]);
   conn.query(sql, async (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", error: err });
@@ -284,7 +284,7 @@ log("clinicEmail :" ,clinicEmail)
       };
 
       await db.collection("generalNotifications").add(notifyDoc);
-      await db.collection("generalNotifications").add(notifyDoc);
+      
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });

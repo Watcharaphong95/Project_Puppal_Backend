@@ -157,7 +157,7 @@ router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
 
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
     clinicEmail,
   ]);
   conn.query(sql, async (err, results) => {
@@ -199,7 +199,7 @@ router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
 
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
     clinicEmail,
   ]);
   conn.query(sql, async (err, results) => {
@@ -243,7 +243,7 @@ router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
 log("clinicEmail :" ,clinicEmail)
 
   // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM clinic WHERE user_email = ?", [
+  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
     clinicEmail,
   ]);
   conn.query(sql, async (err, results) => {

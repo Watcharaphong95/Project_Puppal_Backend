@@ -6,4 +6,5 @@ export const conn = mysql.createPool({
   user: "puppal",
   password: "puppal_1234",
   database: "puppal_data",
+  connectTimeout: 20000,
 });

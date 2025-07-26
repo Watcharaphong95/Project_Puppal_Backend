@@ -18,10 +18,51 @@ export const router = express.Router();
 import { Request, Response } from "express";
 import dayjs from "dayjs";
 import { log } from "firebase-functions/logger";
+
+
+
+//ลบข้อมูลที่เลยวันฉีดยา
+const admin = require("firebase-admin");
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const Database = admin.firestore();
+
+async function deleteExpiredReserves() {
+  const now = new Date();
+
+  const reserveRef = Database.collection("reserve");
+  const snapshot = await reserveRef.get();
+
+  let deleteCount = 0;
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+
+    const status = data.status;
+    const date = new Date(data.date); // assuming this is a string
+
+    if ((status === 1 || status === 2) && date < now) {
+      console.log(`🗑️ Deleting expired reservation: ${doc.id} | status: ${status} | date: ${date}`);
+      await reserveRef.doc(doc.id).delete();
+      deleteCount++;
+    }
+  }
+
+  console.log(`✅ Finished deleting ${deleteCount} expired reservation(s).`);
+}
+
+deleteExpiredReserves().catch(console.error);
+
+
+
+
 const notifyDayOffsets = [3, 1];
 const notifyWeekOffsets = [1];
 const notifyMonthOffsets = [1];
 const notifyOverdueOffsets = [1, 3, 7];
+
 router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) => {
   try {
     const today = dayjs();

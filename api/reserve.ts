@@ -166,7 +166,8 @@ router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) 
 
 router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const formattedTime = dayjs(date).format("H:mm"); 
+  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
+  const formattedTime = dayjs(date).format("H:mm");
 
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
@@ -179,7 +180,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${formattedTime} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
+    const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${thaiDate} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
     const body = `คลินิกฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว`;
 
     try {
@@ -208,6 +209,7 @@ log("clinicEmail :" ,clinicEmail)
 
 router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
+  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
   const formattedTime = dayjs(date).format("H:mm"); 
 
 log("clinicEmail :" ,clinicEmail)
@@ -221,7 +223,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${date} ${formattedTime}`;
+    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${thaiDate} ${formattedTime}`;
     const body = `คลินิกปฏิเสธคำขอฉีดวัคซีนของคุณ`;
 
     try {
@@ -251,7 +253,9 @@ log("clinicEmail :" ,clinicEmail)
 
 router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const formattedTime = dayjs(date).format("H:mm"); 
+  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
+  const formattedTime = dayjs(date).format("H:mm");
+  
 
 log("clinicEmail :" ,clinicEmail)
 
@@ -265,7 +269,7 @@ log("clinicEmail :" ,clinicEmail)
       return res.status(404).json({ message: "Clinic token not found" });
 
     const token = results[0].fcmToken;
-    const title = `✅ คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${date} ${formattedTime}`;
+    const title = `✅ คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${thaiDate} ${formattedTime}`;
     const body = `คลินิก: ${userName} ได้ตอบรับคำขอของคุณ`;
 
     try {
@@ -495,3 +499,5 @@ function generateTimeSlots(
 
   return slots;
 }
+
+

@@ -236,7 +236,6 @@ log("clinicEmail :" ,clinicEmail)
       };
 
       await db.collection("generalNotifications").add(notifyDoc);
-      await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)
         .json({ message: "Notification sent and Firestore saved" });
@@ -254,6 +253,7 @@ router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
   const formattedTime = dayjs(date).format("H:mm"); 
 
 log("clinicEmail :" ,clinicEmail)
+log("generalEmail : ",generalEmail)
 
   // Get clinic FCM token test
   const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
@@ -279,7 +279,6 @@ log("clinicEmail :" ,clinicEmail)
         createAt: new Date(),
       };
 
-      await db.collection("generalNotifications").add(notifyDoc);
       await db.collection("generalNotifications").add(notifyDoc);
       res
         .status(200)

@@ -29,31 +29,44 @@ if (!admin.apps.length) {
 
 const Database = admin.firestore();
 
-async function deleteExpiredReserves() {
-  const now = new Date();
+// API: GET /delete-expired-reserves
+router.get("/delete-expired-reserves", async (req: Request, res: Response) => {
+  try {
+    const now = new Date().toLocaleString("sv-SE", {
+            timeZone: "Asia/Bangkok",
+          });
+    console.log(now);
+    
+    const reserveRef = Database.collection("reserve");
+    const snapshot = await reserveRef.get();
 
-  const reserveRef = Database.collection("reserve");
-  const snapshot = await reserveRef.get();
+    let deleteCount = 0;
 
-  let deleteCount = 0;
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const status = data.status;
+      const date =data.date; // ensure `data.date` is a parseable format
 
-  for (const doc of snapshot.docs) {
-    const data = doc.data();
-
-    const status = data.status;
-    const date = new Date(data.date); // assuming this is a string
-
-    if ((status === 1 || status === 2) && date < now) {
-      console.log(`🗑️ Deleting expired reservation: ${doc.id} | status: ${status} | date: ${date}`);
-      await reserveRef.doc(doc.id).delete();
-      deleteCount++;
+      if ((status === 1 || status === 2) && date < now) {
+        log(`🗑️ Deleting expired reservation: ${doc.id} | status: ${status} | date: ${date}`);
+        await reserveRef.doc(doc.id).delete();
+        deleteCount++;
+      }
     }
+
+    log(`✅ Finished deleting ${deleteCount} expired reservation(s).`);
+    res.status(200).json({
+      message: `Deleted ${deleteCount} expired reservation(s).`,
+      deleted: deleteCount,
+    });
+  } catch (error: any) {
+    log("❌ Error deleting expired reservations", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
-
-  console.log(`✅ Finished deleting ${deleteCount} expired reservation(s).`);
-}
-
-deleteExpiredReserves().catch(console.error);
+});
 
 
 

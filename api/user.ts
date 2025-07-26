@@ -7,8 +7,10 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { OtpPost } from "../model/otpPost";
 import { FcmTokenPost } from "../model/fcmTokenPost";
+import bcrypt from 'bcrypt';
 
 export const router = express.Router();
+const SALT_ROUNDS = 10;
 
 router.get("/", (req, res) => {
   let sql = "SELECT * FROM user";
@@ -65,30 +67,68 @@ router.get("/checkpass/:email", (req, res) => {
   });
 });
 
-router.post("/", (req, res) => {
-  let user: UserData = req.body;
-  const password = user.password === "" ? null : user.password;
-  let sql =
-    "INSERT INTO user (email, password, general, clinic) VALUES (?, ?, ?, ?)";
-  sql = mysql.format(sql, [user.email, password, user.general, user.clinic]);
+router.post("/", async (req, res) => {
+  try {
+    const user: UserData = req.body;
 
-  conn.query(sql, (err, result) => {
-    if (err) throw err;
-    res.status(201).json({ message: "insert success" });
-  });
+    // Handle empty password
+    let hashedPassword: string | null = null;
+    if (user.password && user.password !== "") {
+      hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+    }
+
+    // Prepare SQL
+    let sql =
+      "INSERT INTO user (email, password, general, clinic) VALUES (?, ?, ?, ?)";
+    sql = mysql.format(sql, [
+      user.email,
+      hashedPassword,
+      user.general,
+      user.clinic,
+    ]);
+
+    // Execute query
+    conn.query(sql, (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Database insert failed" });
+      }
+      res.status(201).json({ message: "Insert success" });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.post("/login", (req, res) => {
-  let user: UserData = req.body;
-  let sql = "SELECT * FROM user WHERE email = ? AND password = ?";
-  sql = mysql.format(sql, [user.email, user.password]);
-  conn.query(sql, (err, result) => {
-    if (err) throw err;
-    if (result.length > 0) {
-      res.status(200).json(result[0]);
-    } else {
-      res.status(404).json({ message: "User not found" });
+  const user: UserData = req.body;
+
+  // Step 1: Get the user by email
+  let sql = "SELECT * FROM user WHERE email = ?";
+  sql = mysql.format(sql, [user.email]);
+
+  conn.query(sql, async (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Server error" });
     }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const dbUser = results[0];
+
+    // Step 2: Compare password with hashed password
+    const isMatch = await bcrypt.compare(user.password, dbUser.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    // Step 3: Remove password before sending user info back
+    delete dbUser.password;
+    res.status(200).json(dbUser);
   });
 });
 
@@ -113,15 +153,32 @@ router.delete("/:email", (req, res) => {
   });
 });
 
-router.put("/password", (req, res) => {
-  let user: UserData = req.body;
-  log(user.email);
-  let sql = "UPDATE user SET password = ? WHERE email = ?";
-  sql = mysql.format(sql, [user.password, user.email]);
-  conn.query(sql, (err, result) => {
-    if (err) throw err;
-    res.status(200).json({ message: "Password Update Success" });
-  });
+router.put("/password", async (req, res) => {
+  try {
+    const user: UserData = req.body;
+    const rawPassword = user.password;
+
+    // Handle empty password
+    if (!rawPassword || rawPassword === "") {
+      res.status(400).json({ message: "Password cannot be empty" });
+    }
+
+    const hashedPassword = await bcrypt.hash(rawPassword, SALT_ROUNDS);
+
+    let sql = "UPDATE user SET password = ? WHERE email = ?";
+    sql = mysql.format(sql, [hashedPassword, user.email]);
+
+    conn.query(sql, (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Update failed" });
+      }
+      res.status(200).json({ message: "Password Update Success" });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.put("/fcmToken", (req, res) => {

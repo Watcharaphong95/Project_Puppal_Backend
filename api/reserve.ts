@@ -153,7 +153,7 @@ router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) 
 
 router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const formattedTime = dayjs(date).format("HH:mm"); 
+  const formattedTime = dayjs(date).format("H:mm"); 
 
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
@@ -195,7 +195,7 @@ log("clinicEmail :" ,clinicEmail)
 
 router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const formattedTime = dayjs(date).format("HH:mm"); 
+  const formattedTime = dayjs(date).format("H:mm"); 
 
 log("clinicEmail :" ,clinicEmail)
   // Get clinic FCM token test
@@ -238,7 +238,7 @@ log("clinicEmail :" ,clinicEmail)
 
 router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const formattedTime = dayjs(date).format("HH:mm"); 
+  const formattedTime = dayjs(date).format("H:mm"); 
 
 log("clinicEmail :" ,clinicEmail)
 

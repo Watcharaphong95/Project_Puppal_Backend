@@ -285,7 +285,8 @@ router.get("/sendotp/:email", async (req, res) => {
 
 
     await transporter.sendMail(mailOptions);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const moment = require('moment-timezone');
+    const expiresAt = moment().tz("Asia/Bangkok").add(5, 'minutes').format('YYYY-MM-DD HH:mm:ss');
 
     let sql =
       "INSERT INTO otp (user_email, otp , expire) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp = VALUES(otp), expire = VALUES(expire)";

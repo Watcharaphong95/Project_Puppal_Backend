@@ -97,5 +97,28 @@ router.put("/editprofile/:careerNo",(req, res) => {
 
 
 
+// ลบข้อมูล dogtor ตาม id
+router.delete('/:careerNo', (req, res) => {
+   const careerNo = req.params.careerNo;
+  const sql = "DELETE FROM doctor WHERE careerNo = ?";
+  const formattedSql = mysql.format(sql, [careerNo]);
+
+  conn.query(formattedSql, (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ไม่พบข้อมูลที่ต้องการลบ" });
+    }
+    res.json({ message: "ลบข้อมูลสำเร็จ" });
+  });
+});
+
+
+
+
+
+
 
 

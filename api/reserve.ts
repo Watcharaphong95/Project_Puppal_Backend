@@ -16,10 +16,12 @@ import { db } from "../firebaseconnect";
 export const router = express.Router();
 
 import { Request, Response } from "express";
-import dayjs from "dayjs";
+
 import { log } from "firebase-functions/logger";
 
-
+const dayjs = require("dayjs");
+require("dayjs/locale/th"); // โหลด locale ภาษาไทย
+dayjs.locale("th");
 
 //ลบข้อมูลที่เลยวันฉีดยา
 const admin = require("firebase-admin");
@@ -166,136 +168,185 @@ router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) 
 
 router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
-  const formattedTime = dayjs(date).format("H:mm");
 
-log("clinicEmail :" ,clinicEmail)
-  // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    generalEmail,
-  ]);
-  conn.query(sql, async (err, results) => {
-    if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken)
-      return res.status(404).json({ message: "Clinic token not found" });
+  try {
+    const weekday = dayjs(date).format("dddd");
+    const day = dayjs(date).format("D");
+    const month = dayjs(date).format("MMMM");
+    const year = dayjs(date).year() + 543;
+    const time = dayjs(date).format("HH:mm");
+    const thaiFullDate = `${weekday}ที่ ${day} ${month} ${year} เวลา ${time} น.`;
 
-    const token = results[0].fcmToken;
-    const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${thaiDate} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
-    const body = `คลินิกฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว`;
+    console.log("clinicEmail :", clinicEmail);
 
-    try {
-      const message = await sendFCMToken(token, title, body);
+    const sql = mysql.format(
+      "SELECT fcmToken FROM general WHERE user_email = ?",
+      [generalEmail]
+    );
 
-      // 🔥 เพิ่มข้อมูลลง Firestore
-      const notifyDoc = {
-        senderEmail: clinicEmail,
-        receiverEmail: generalEmail,
-        message,
-        createAt: new Date(),
-      };
+    conn.query(sql, async (err, results) => {
+      if (err)
+        return res.status(500).json({ message: "DB error", error: err });
+      if (results.length === 0 || !results[0].fcmToken)
+        return res.status(404).json({ message: "Clinic token not found" });
 
-      await db.collection("generalNotifications").add(notifyDoc);
-      res
-        .status(200)
-        .json({ message: "Notification sent and Firestore saved" });
-    } catch (error) {
-      console.error("Error sending notification or saving Firestore:", error);
-      res
-        .status(500)
-        .json({ message: "Notification or Firestore error", error });
-    }
-  });
+      const token = results[0].fcmToken;
+
+      const title = `✅ คลินิก ${userName} ทำการฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว วันที่ ${thaiFullDate} ขอบคุณที่เข้ามาใช้บริการกับเรา ครับ/ค่ะ`;
+      const body = `คลินิก ${userName} ฉีดวัคซีนให้กับสุนัขของคุณเรียบร้อยแล้ว`;
+
+      try {
+        const message = await sendFCMToken(token, title, body);
+
+        const notifyDoc = {
+          senderEmail: clinicEmail,
+          receiverEmail: generalEmail,
+          message,
+          createAt: new Date(),
+        };
+
+        await db.collection("generalNotifications").add(notifyDoc);
+
+        res.status(200).json({
+          message: "Notification sent and Firestore saved",
+        });
+      } catch (error) {
+        console.error("Error sending notification or saving Firestore:", error);
+        res.status(500).json({
+          message: "Notification or Firestore error",
+          error,
+        });
+      }
+    });
+  } catch (e) {
+    console.error("❌ Error formatting date:", e);
+    res.status(400).json({ message: "Invalid date format", error: e });
+  }
 });
 
 router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
-  const formattedTime = dayjs(date).format("H:mm"); 
 
-log("clinicEmail :" ,clinicEmail)
-  // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    generalEmail,
-  ]);
-  conn.query(sql, async (err, results) => {
-    if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken)
-      return res.status(404).json({ message: "Clinic token not found" });
+  try {
+    const weekday = dayjs(date).format("dddd");
+    const day = dayjs(date).format("D");
+    const month = dayjs(date).format("MMMM");
+    const year = dayjs(date).year() + 543;
+    const time = dayjs(date).format("HH:mm");
+    const thaiFullDate = `${weekday}ที่ ${day} ${month} ${year} เวลา ${time} น.`;
 
-    const token = results[0].fcmToken;
-    const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${thaiDate} ${formattedTime}`;
-    const body = `คลินิกปฏิเสธคำขอฉีดวัคซีนของคุณ`;
+    console.log("clinicEmail :", clinicEmail);
 
-    try {
-      const message = await sendFCMToken(token, title, body);
+    const sql = mysql.format(
+      "SELECT fcmToken FROM general WHERE user_email = ?",
+      [generalEmail]
+    );
 
-      // 🔥 เพิ่มข้อมูลลง Firestore
-      const notifyDoc = {
-        senderEmail: clinicEmail,
-        receiverEmail: generalEmail,
-        message,
-        createAt: new Date(),
-      };
+    conn.query(sql, async (err, results) => {
+      if (err)
+        return res.status(500).json({ message: "DB error", error: err });
+      if (results.length === 0 || !results[0].fcmToken)
+        return res.status(404).json({ message: "Clinic token not found" });
 
-      await db.collection("generalNotifications").add(notifyDoc);
+      const token = results[0].fcmToken;
 
-      res
-        .status(200)
-        .json({ message: "Notification sent and Firestore saved" });
-    } catch (error) {
-      console.error("Error sending notification or saving Firestore:", error);
-      res
-        .status(500)
-        .json({ message: "Notification or Firestore error", error });
-    }
-  });
+      const title = `❌ คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ วันที่ ${thaiFullDate}`;
+      const body = `คลินิก ${userName} ปฏิเสธคำขอฉีดวัคซีนของคุณ`;
+
+      try {
+        const message = await sendFCMToken(token, title, body);
+
+        const notifyDoc = {
+          senderEmail: clinicEmail,
+          receiverEmail: generalEmail,
+          message,
+          createAt: new Date(),
+        };
+
+        await db.collection("generalNotifications").add(notifyDoc);
+
+        res.status(200).json({
+          message: "Notification sent and Firestore saved",
+        });
+      } catch (error) {
+        console.error("Error sending notification or saving Firestore:", error);
+        res.status(500).json({
+          message: "Notification or Firestore error",
+          error,
+        });
+      }
+    });
+  } catch (e) {
+    console.error("❌ Error formatting date:", e);
+    res.status(400).json({ message: "Invalid date format", error: e });
+  }
 });
+
+
 
 router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
-  const thaiDate = dayjs(date).locale("th").format("D MMMM YYYY");
-  const formattedTime = dayjs(date).format("H:mm");
-  
 
-log("clinicEmail :" ,clinicEmail)
+  // ✅ แปลงวันที่เป็นภาษาไทยแบบเต็ม
+  try {
+    const weekday = dayjs(date).format("dddd"); // วันในสัปดาห์ เช่น "วันพฤหัสบดี"
+    const day = dayjs(date).format("D");
+    const month = dayjs(date).format("MMMM"); // ชื่อเดือนเต็ม
+    const year = dayjs(date).year() + 543; // แปลงปี ค.ศ. ➜ พ.ศ.
+    const time = dayjs(date).format("HH:mm"); // เวลาแบบ 2 หลัก เช่น 09:30
 
-  // Get clinic FCM token test
-  const sql = mysql.format("SELECT fcmToken FROM general WHERE user_email = ?", [
-    generalEmail,
-  ]);
-  conn.query(sql, async (err, results) => {
-    if (err) return res.status(500).json({ message: "DB error", error: err });
-    if (results.length === 0 || !results[0].fcmToken)
-      return res.status(404).json({ message: "Clinic token not found" });
+    const thaiFullDate = `${weekday}ที่ ${day} ${month} ${year} เวลา ${time} น.`;
 
-    const token = results[0].fcmToken;
-    const title = `✅ คลินิกตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${thaiDate} ${formattedTime}`;
-    const body = `คลินิก: ${userName} ได้ตอบรับคำขอของคุณ`;
+    console.log("clinicEmail :", clinicEmail);
+    console.log("generalEmail :", generalEmail);
+    console.log("thaiFullDate :", thaiFullDate);
 
-    try {
-      const message = await sendFCMToken(token, title, body);
+    // ✅ ค้นหา FCM Token จากผู้ใช้งาน
+    const sql = mysql.format(
+      "SELECT fcmToken FROM general WHERE user_email = ?",
+      [generalEmail]
+    );
 
-      // 🔥 เพิ่มข้อมูลลง Firestore
-      const notifyDoc = {
-        senderEmail: clinicEmail,
-        receiverEmail: generalEmail,
-        message,
-        createAt: new Date(),
-      };
+    conn.query(sql, async (err, results) => {
+      if (err)
+        return res.status(500).json({ message: "DB error", error: err });
+      if (results.length === 0 || !results[0].fcmToken)
+        return res.status(404).json({ message: "Clinic token not found" });
 
-      await db.collection("generalNotifications").add(notifyDoc);
-      
-      res
-        .status(200)
-        .json({ message: "Notification sent and Firestore saved" });
-    } catch (error) {
-      console.error("Error sending notification or saving Firestore:", error);
-      res
-        .status(500)
-        .json({ message: "Notification or Firestore error", error });
-    }
-  });
+      const token = results[0].fcmToken;
+
+      const title = `✅ คลินิก ${userName} ตอบรับคำขอฉีดวัคซีนของคุณแล้ว วันที่ ${thaiFullDate}`;
+      const body = `คลินิก: ${userName} ได้ตอบรับคำขอของคุณ`;
+
+      try {
+        const message = await sendFCMToken(token, title, body);
+
+        // 🔥 เพิ่มข้อมูลลง Firestore
+        const notifyDoc = {
+          senderEmail: clinicEmail,
+          receiverEmail: generalEmail,
+          message,
+          createAt: new Date(),
+        };
+
+        await db.collection("generalNotifications").add(notifyDoc);
+
+        res
+          .status(200)
+          .json({ message: "Notification sent and Firestore saved" });
+      } catch (error) {
+        console.error("Error sending notification or saving Firestore:", error);
+        res
+          .status(500)
+          .json({ message: "Notification or Firestore error", error });
+      }
+    });
+  } catch (e) {
+    console.error("❌ Error formatting date:", e);
+    res.status(400).json({ message: "Invalid date format", error: e });
+  }
 });
+
 
 
 router.post("/notify/clinic-request", async (req, res) => {

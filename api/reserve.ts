@@ -18,8 +18,8 @@ export const router = express.Router();
 import { Request, Response } from "express";
 
 import { log } from "firebase-functions/logger";
+import dayjs from "dayjs";
 
-const dayjs = require("dayjs");
 require("dayjs/locale/th"); // โหลด locale ภาษาไทย
 dayjs.locale("th");
 
@@ -73,98 +73,63 @@ router.get("/delete-expired-reserves", async (req: Request, res: Response) => {
 
 
 
-const notifyDayOffsets = [3, 1];
-const notifyWeekOffsets = [1];
-const notifyMonthOffsets = [1];
-const notifyOverdueOffsets = [1, 3, 7];
-
 router.get("/notify/upcoming-vaccinations", async (req: Request, res: Response) => {
   try {
+    console.log(`🔄 Starting vaccination notification check at ${new Date().toISOString()}`);
+    
     const today = dayjs();
+    let processedCount = 0;
+    let notificationsSent = 0;
+    let errors = 0;
 
+    // Get all confirmed appointments (status = 2)
     const snapshot = await db.collection("reserve")
       .where("status", "==", 2)
       .get();
 
+    console.log(`📊 Found ${snapshot.docs.length} confirmed appointments to check`);
+
+    // Process each appointment
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-
-      const appointmentDate = data.date?.toDate ? dayjs(data.date.toDate()) : dayjs(data.date);
-
-      const daysLeft = appointmentDate.diff(today, "day");
-      const weeksLeft = appointmentDate.diff(today, "week");
-      const monthsLeft = appointmentDate.diff(today, "month");
-      const daysOverdue = today.diff(appointmentDate, "day");
-
-      const notifyMessages: string[] = [];
-
-      if (notifyDayOffsets.includes(daysLeft)) {
-        notifyMessages.push(`ล่วงหน้า ${daysLeft} วัน`);
-      }
-      if (notifyWeekOffsets.includes(weeksLeft) && daysLeft > 0) {
-        notifyMessages.push(`ล่วงหน้า ${weeksLeft} สัปดาห์`);
-      }
-      if (notifyMonthOffsets.includes(monthsLeft) && daysLeft > 0) {
-        notifyMessages.push(`ล่วงหน้า ${monthsLeft} เดือน`);
-      }
-      if (notifyOverdueOffsets.includes(daysOverdue) && today.isAfter(appointmentDate)) {
-        notifyMessages.push(`พลาดนัดมาแล้ว ${daysOverdue} วัน`);
-      }
-
-      for (const whenText of notifyMessages) {
-        // 1. บันทึกแจ้งเตือนไว้ใน Firestore
-        const notifyDoc = {
-          senderEmail: data.clinicEmail,
-          receiverEmail: data.generalEmail,
-          message: `📅 แจ้งเตือนนัดฉีดวัคซีน: คุณมีนัดฉีดวัคซีน ${whenText} (${appointmentDate.format("YYYY-MM-DD")})`,
-          createAt: new Date(),
-        };
-
-        await db.collection("notify").add(notifyDoc);
-        console.log(`✅ แจ้งเตือน ${whenText} ให้ ${data.generalEmail}`);
-
-        // 2. ดึง fcmToken จาก MySQL
-        const sql = mysql.format(
-          "SELECT fcmToken FROM general WHERE user_email = ?",
-          [data.generalEmail]
-        );
-
-        const results = await new Promise<any[]>((resolve, reject) => {
-          conn.query(sql, (err, results) => {
-            if (err) reject(err);
-            else resolve(results);
-          });
-        });
-
-        if (results && results.length > 0 && results[0].fcmToken) {
-          const token = results[0].fcmToken;
-          // ... ส่ง FCM ต่อ
-        } else {
-          console.log(`⚠️ ไม่พบ FCM Token สำหรับ ${data.generalEmail}`);
+      try {
+        const data = doc.data() as AppointmentData;
+        
+        if (!data.clinicEmail) {
+          console.warn(`⚠️ Missing clinicEmail for appointment ${doc.id}`);
+          continue;
         }
 
-
-        if (results && results.length > 0 && results[0].fcmToken) {
-          const token = results[0].fcmToken;
-          const title = "📅 แจ้งเตือนนัดฉีดวัคซีน";
-          const body = `คุณมีนัดฉีดวัคซีน ${whenText} (${appointmentDate.format("YYYY-MM-DD")})`;
-
-          // 3. ส่งแจ้งเตือนผ่าน FCM
-          await sendFCMToken(token, title, body);
-          console.log(`✅ ส่ง Push Notification ถึง ${data.generalEmail}`);
-        } else {
-          console.log(`⚠️ ไม่พบ FCM Token สำหรับ ${data.generalEmail}`);
-        }
+        await processAppointmentNotifications(doc.id, data, today);
+        processedCount++;
+        
+      } catch (error) {
+        console.error(`❌ Error processing appointment ${doc.id}:`, error);
+        errors++;
       }
     }
 
-    res.status(200).json({ message: "Checked, notified and sent push notifications." });
-  } catch (err) {
-    console.error("❌ Error running checkUpcomingVaccinations:", err);
-    res.status(500).json({ message: "Internal error", error: err });
+    const summary = {
+      message: "Vaccination notification check completed",
+      timestamp: new Date().toISOString(),
+      stats: {
+        totalAppointments: snapshot.docs.length,
+        processed: processedCount,
+        errors: errors
+      }
+    };
+
+    console.log(`✅ Notification check completed:`, summary);
+    res.status(200).json(summary);
+
+  } catch (error) {
+    console.error("❌ Critical error in vaccination notification system:", error);
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
-
 
 router.post("/notify/injectioncompleted/clinic-request", async (req, res) => {
   const { clinicEmail, generalEmail, userName, date } = req.body;
@@ -551,4 +516,237 @@ function generateTimeSlots(
   return slots;
 }
 
+// Configuration for notification intervals
+const NOTIFICATION_CONFIG = {
+  dayOffsets: [1, 2, 3],
+  weekOffsets: [1, 2], 
+  monthOffsets: [1, 3],
+  overdueOffsets: [1, 3, 7, 14] // Added 14 days for extended overdue tracking
+};
 
+interface NotificationData {
+  senderEmail: string;
+  receiverEmail: string;
+  message: string;
+  createAt: Date;
+  appointmentId: string;
+  notificationType: 'upcoming' | 'overdue';
+  offsetValue: number;
+  offsetUnit: 'day' | 'week' | 'month';
+}
+
+interface AppointmentData {
+  clinicEmail: string;
+  generalEmail: string;
+  date: any;
+  patientName?: string;
+  vaccineType?: string;
+  [key: string]: any;
+}
+
+// Thai month names
+const THAI_MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+// Thai day names
+const THAI_DAYS = [
+  'อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'
+];
+
+/**
+ * Format date to Thai format
+ */
+const formatThaiDate = (date: dayjs.Dayjs): string => {
+  const day = date.date();
+  const month = THAI_MONTHS[date.month()];
+  const year = date.year() + 543; // Convert to Buddhist year
+  const dayName = THAI_DAYS[date.day()];
+  const time = date.format("HH:mm");
+  
+  return `วัน${dayName}ที่ ${day} ${month} ${year} เวลา ${time} น.`;
+};
+
+/**
+ * Create notification message based on type and timing
+ */
+const createNotificationMessage = (
+  type: 'day' | 'week' | 'month' | 'overdue',
+  value: number,
+  appointmentDate: dayjs.Dayjs,
+  data: AppointmentData
+): string => {
+  const thaiDateStr = formatThaiDate(appointmentDate);
+  
+  switch (type) {
+    case 'day':
+      return `📅 แจ้งเตือนนัดฉีดวัคซีน: คุณมีนัดฉีดวัคซีนในอีก ${value} วัน (${thaiDateStr})`;
+    case 'week':
+      return `📅 แจ้งเตือนนัดฉีดวัคซีน: คุณมีนัดฉีดวัคซีนในอีก ${value} สัปดาห์ (${thaiDateStr})`;
+    case 'month':
+      return `📅 แจ้งเตือนนัดฉีดวัคซีน: คุณมีนัดฉีดวัคซีนในอีก ${value} เดือน (${thaiDateStr})`;
+    case 'overdue':
+      return `⚠️ แจ้งเตือนนัดที่พลาด: คุณพลาดนัดฉีดวัคซีนมาแล้ว ${value} วัน (${thaiDateStr}) โปรดติดต่อคลินิกเพื่อนัดหมายใหม่`;
+    default:
+      return `📅 แจ้งเตือนนัดฉีดวัคซีน (${thaiDateStr})`;
+  }
+};
+
+/**
+ * Save notification to Firestore
+ */
+const saveNotification = async (notificationData: NotificationData): Promise<void> => {
+  try {
+    await db.collection("clinicNotifications").add(notificationData);
+    console.log(`✅ บันทึกแจ้งเตือนสำเร็จ: ${notificationData.receiverEmail}`);
+  } catch (error) {
+    console.error(`❌ ไม่สามารถบันทึกแจ้งเตือนได้:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get FCM token from MySQL
+ */
+const getFCMToken = async (email: string): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    const sql = mysql.format(
+      "SELECT fcmToken FROM clinic WHERE user_email = ? AND fcmToken IS NOT NULL AND fcmToken != ''",
+      [email]
+    );
+
+    conn.query(sql, (err, results: any[]) => {
+      if (err) {
+        console.error(`❌ Database error for ${email}:`, err);
+        reject(err);
+      } else if (results && results.length > 0 && results[0].fcmToken) {
+        resolve(results[0].fcmToken);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+};
+
+/**
+ * Send push notification via FCM
+ */
+const sendPushNotification = async (
+  token: string, 
+  title: string, 
+  body: string, 
+  email: string
+): Promise<void> => {
+  try {
+    await sendFCMToken(token, title, body);
+    console.log(`✅ ส่ง Push Notification สำเร็จ: ${email}`);
+  } catch (error) {
+    console.error(`❌ ไม่สามารถส่ง Push Notification ได้ (${email}):`, error);
+    // Don't throw error, just log it - notification failure shouldn't stop the process
+  }
+};
+
+/**
+ * Process notifications for a single appointment
+ */
+const processAppointmentNotifications = async (
+  appointmentId: string,
+  data: AppointmentData,
+  today: dayjs.Dayjs
+): Promise<void> => {
+  const appointmentDate = data.date?.toDate ? dayjs(data.date.toDate()) : dayjs(data.date);
+  
+  if (!appointmentDate.isValid()) {
+    console.warn(`⚠️ Invalid appointment date for ${appointmentId}`);
+    return;
+  }
+
+  const daysLeft = appointmentDate.diff(today, "day");
+  const weeksLeft = appointmentDate.diff(today, "week");
+  const monthsLeft = appointmentDate.diff(today, "month");
+  const daysOverdue = today.diff(appointmentDate, "day");
+
+  const notifications: Array<{
+    type: 'day' | 'week' | 'month' | 'overdue';
+    value: number;
+    message: string;
+    notificationType: 'upcoming' | 'overdue';
+  }> = [];
+
+  // Check for upcoming notifications (prioritize longer periods first to avoid conflicts)
+  
+  // Check months first (only if more than 4 weeks away to avoid overlap)
+  if (NOTIFICATION_CONFIG.monthOffsets.includes(monthsLeft) && daysLeft >= 28) {
+    notifications.push({
+      type: 'month',
+      value: monthsLeft,
+      message: createNotificationMessage('month', monthsLeft, appointmentDate, data),
+      notificationType: 'upcoming'
+    });
+  }
+  // Check weeks (only if not already notified for months and more than 6 days away)
+  else if (NOTIFICATION_CONFIG.weekOffsets.includes(weeksLeft) && daysLeft >= 7 && daysLeft < 28) {
+    notifications.push({
+      type: 'week',
+      value: weeksLeft,
+      message: createNotificationMessage('week', weeksLeft, appointmentDate, data),
+      notificationType: 'upcoming'
+    });
+  }
+  // Check days (only if less than a week away)
+  else if (NOTIFICATION_CONFIG.dayOffsets.includes(daysLeft) && daysLeft > 0 && daysLeft < 7) {
+    notifications.push({
+      type: 'day',
+      value: daysLeft,
+      message: createNotificationMessage('day', daysLeft, appointmentDate, data),
+      notificationType: 'upcoming'
+    });
+  }
+
+  // Check for overdue notifications
+  if (NOTIFICATION_CONFIG.overdueOffsets.includes(daysOverdue) && today.isAfter(appointmentDate)) {
+    notifications.push({
+      type: 'overdue',
+      value: daysOverdue,
+      message: createNotificationMessage('overdue', daysOverdue, appointmentDate, data),
+      notificationType: 'overdue'
+    });
+  }
+
+  // Process each notification
+  for (const notification of notifications) {
+    try {
+      // 1. Save notification to Firestore
+      const notificationData: NotificationData = {
+        senderEmail: 'system',
+        receiverEmail: data.clinicEmail,
+        message: notification.message,
+        createAt: new Date(),
+        appointmentId,
+        notificationType: notification.notificationType,
+        offsetValue: notification.value,
+        offsetUnit: notification.type === 'overdue' ? 'day' : notification.type
+      };
+
+      await saveNotification(notificationData);
+
+      // 2. Get FCM token and send push notification
+      const fcmToken = await getFCMToken(data.clinicEmail);
+      
+      if (fcmToken) {
+        const title = notification.notificationType === 'overdue' 
+          ? "⚠️ แจ้งเตือนนัดที่พลาด" 
+          : "📅 แจ้งเตือนนัดฉีดวัคซีน";
+        
+        await sendPushNotification(fcmToken, title, notification.message, data.clinicEmail);
+      } else {
+        console.log(`⚠️ ไม่พบ FCM Token สำหรับ ${data.clinicEmail}`);
+      }
+
+    } catch (error) {
+      console.error(`❌ Error processing notification for ${appointmentId}:`, error);
+      // Continue with other notifications even if one fails
+    }
+  }
+};

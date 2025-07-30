@@ -67,6 +67,8 @@ export function notifyUpcomingAppointments(
         nextAppointments.add(row.nextAppointment_aid);
     }
 
+    console.log("🔍 Old appointments to filter:", [...oldAppointments]);
+
     conn.query(
       sqlAppointments,
       async (errAppoint: any, appointmentRows: any[]) => {
@@ -74,6 +76,8 @@ export function notifyUpcomingAppointments(
           console.error("Appointment query error:", errAppoint);
           return callback(null, errAppoint);
         }
+
+        console.log("📅 Total appointments found:", appointmentRows.length);
 
         try {
           const firestore = admin.firestore();
@@ -102,7 +106,7 @@ export function notifyUpcomingAppointments(
             }
           });
 
-          // console.log([...aidStatusMap.keys()]);
+          console.log("🔍 Status map size:", aidStatusMap.size);
 
           // Group appointments by user and type (overdue vs upcoming)
           const userNotifications = new Map<
@@ -122,8 +126,11 @@ export function notifyUpcomingAppointments(
             today.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" })
           );
 
+          console.log("📅 Today (Bangkok):", bangkokToday.toISOString().split('T')[0]);
+
           for (const row of appointmentRows) {
             if (!row.date || !row.fcmToken) {
+              console.log(`⚠️ Skipping appointment ${row.aid}: missing date or fcmToken`);
               continue;
             }
 
@@ -136,12 +143,19 @@ export function notifyUpcomingAppointments(
             );
             const appointmentDate = new Date(appointmentDateStr);
 
+            console.log(`🔍 Processing appointment ${row.aid}:`);
+            console.log(`   - Dog: ${row.dogName}`);
+            console.log(`   - User: ${row.general_user_email}`);
+            console.log(`   - Date: ${appointmentDate.toISOString().split('T')[0]}`);
+
             // Calculate differences using date-only comparison
             const diffDays = Math.floor(
               (appointmentDate.getTime() - bangkokToday.getTime()) /
                 (1000 * 60 * 60 * 24)
             );
             const diffWeeks = Math.floor(diffDays / 7);
+
+            console.log(`   - Diff days: ${diffDays}`);
 
             // Better month calculation
             const todayMonth = bangkokToday.getMonth();
@@ -166,29 +180,39 @@ export function notifyUpcomingAppointments(
             const notifyOverdue =
               diffDays < 0 && notifyOverdueOffsets.includes(Math.abs(diffDays));
 
+            console.log(`   - Notify by day (${diffDays} days): ${notifyByDay}`);
+            console.log(`   - Notify by week (${diffWeeks} weeks, same weekday: ${sameWeekday}): ${notifyByWeek}`);
+            console.log(`   - Notify by month (${diffMonths} months, same day: ${sameMonthDay}): ${notifyByMonth}`);
+            console.log(`   - Notify overdue: ${notifyOverdue}`);
+
             // Check if should notify
             if (
               !(notifyByWeek || notifyByMonth || notifyByDay || notifyOverdue)
             ) {
+              console.log(`❌ No notification trigger for appointment ${row.aid}`);
               continue;
             }
 
-            console.log("✔️ Map keys:", [...aidStatusMap.keys()]);
+            console.log(`✅ Notification trigger found for appointment ${row.aid}`);
 
             const aid = Number(row.aid);
             const status = aidStatusMap.get(aid);
 
-            console.log(status);
+            console.log(`   - Status: ${status} (undefined means no reserve record)`);
 
             // Status filter
             if (status !== undefined && status !== 0) {
+              console.log(`❌ Filtered out by status (${status}) for appointment ${aid}`);
               continue;
             }
 
             // Old appointment filter
             if (oldAppointments.has(aid)) {
+              console.log(`❌ Filtered out as old appointment: ${aid}`);
               continue;
             }
+
+            console.log(`✅ Appointment ${aid} passed all filters - will notify`);
 
             // Group by user email
             const userEmail = row.general_user_email;
@@ -227,12 +251,38 @@ export function notifyUpcomingAppointments(
             }
           }
 
+          console.log(`📊 Users to notify: ${userNotifications.size}`);
+
           const notified: string[] = [];
+
+          // Helper function to create system notification
+          const createSystemNotification = async (
+            userEmail: string,
+            message: string
+          ) => {
+            try {
+              const notifyDoc = {
+                senderEmail: 'system',
+                receiverEmail: userEmail,
+                message,
+                createAt: new Date(),
+              };
+
+              await firestore.collection("generalNotifications").add(notifyDoc);
+              console.log(`System notification created for user: ${userEmail}`);
+            } catch (error) {
+              console.error("Error creating system notification:", error);
+            }
+          };
 
           // Send separate notifications for overdue and upcoming appointments
           for (const [userEmail, userData] of userNotifications.entries()) {
             const overdueCount = userData.overdueAppointments.length;
             const upcomingCount = userData.upcomingAppointments.length;
+
+            console.log(`📧 Processing notifications for ${userEmail}:`);
+            console.log(`   - Overdue: ${overdueCount}`);
+            console.log(`   - Upcoming: ${upcomingCount}`);
 
             // Send overdue notification
             if (overdueCount > 0 && userData.mostUrgentOverdue) {
@@ -266,15 +316,27 @@ export function notifyUpcomingAppointments(
                 },
               };
 
+              // Create system notification for overdue appointments
+              const systemMessage = overdueCount > 1
+                ? `คุณมี ${overdueCount} นัดที่พลาดแล้ว - นัดที่พลาดนานที่สุด: ${userData.mostUrgentOverdue.dogName} พลาดเมื่อ ${formattedDate} (${userData.mostUrgentOverdue.diffDays} วันแล้ว)`
+                : `${userData.mostUrgentOverdue.dogName} พลาดนัดฉีดยาเมื่อ ${formattedDate} (${userData.mostUrgentOverdue.diffDays} วันแล้ว) กรุณาจองนัดใหม่โดยเร็ว`;
+
               try {
                 await admin.messaging().send(overdueMessage);
-                if (!notified.includes(userEmail)) notified.push(userEmail);
+                console.log(`✅ Overdue FCM sent to ${userEmail}`);
               } catch (fcmErr) {
                 console.error(
-                  `FCM send error for overdue ${userEmail}:`,
+                  `❌ FCM send error for overdue ${userEmail}:`,
                   fcmErr
                 );
+                console.log(`⚠️ FCM failed but still creating system notification for ${userEmail}`);
               }
+
+              // Always create system notification regardless of FCM success/failure
+              await createSystemNotification(userEmail, systemMessage);
+              
+              // Add to notified list (whether FCM succeeded or failed)
+              if (!notified.includes(userEmail)) notified.push(userEmail);
             }
 
             // Send upcoming notification
@@ -309,18 +371,31 @@ export function notifyUpcomingAppointments(
                 },
               };
 
+              // Create system notification for upcoming appointments
+              const systemMessage = upcomingCount > 1
+                ? `คุณมี ${upcomingCount} นัดที่ยังไม่จอง - นัดที่ใกล้ที่สุด: ${userData.mostUrgentUpcoming.dogName} วันที่ ${formattedDate} (อีก ${userData.mostUrgentUpcoming.diffDays} วัน)`
+                : `${userData.mostUrgentUpcoming.dogName} มีนัดฉีดยาที่คุณยังไม่จองวันที่ ${formattedDate} (อีก ${userData.mostUrgentUpcoming.diffDays} วัน)`;
+              
               try {
                 await admin.messaging().send(upcomingMessage);
-                if (!notified.includes(userEmail)) notified.push(userEmail);
+                console.log(`✅ Upcoming FCM sent to ${userEmail}`);
               } catch (fcmErr) {
                 console.error(
-                  `FCM send error for upcoming ${userEmail}:`,
+                  `❌ FCM send error for upcoming ${userEmail}:`,
                   fcmErr
                 );
+                console.log(`⚠️ FCM failed but still creating system notification for ${userEmail}`);
               }
+
+              // Always create system notification regardless of FCM success/failure
+              await createSystemNotification(userEmail, systemMessage);
+              
+              // Add to notified list (whether FCM succeeded or failed)
+              if (!notified.includes(userEmail)) notified.push(userEmail);
             }
           }
 
+          console.log(`🎯 Final result - notified users: ${notified.length}`);
           callback(notified);
         } catch (firestoreErr) {
           console.error("Firestore error:", firestoreErr);

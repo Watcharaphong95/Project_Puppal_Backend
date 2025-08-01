@@ -142,6 +142,16 @@ router.put("/deleteGeneral/:email", (req, res) => {
   });
 });
 
+router.put("/deleteClinic/:email", (req, res) => {
+  let email = req.params.email;
+  let sql = "UPDATE user SET clinic = ? WHERE email = ?";
+  sql = mysql.format(sql, [null, email]);
+  conn.query(sql, (err, result) => {
+    if (err) throw err;
+    res.status(200).json({ message: "clinic type Update Success" });
+  });
+});
+
 router.delete("/:email", (req, res) => {
   let email = req.params.email;
   let sql = "DELETE FROM user WHERE user_email = ?";

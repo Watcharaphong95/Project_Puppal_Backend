@@ -451,3 +451,30 @@ function generateTimeSlots(
 
   return slots;
 }
+
+router.delete("/:email", (req, res) => {
+  let email = req.params.email;
+  // change clinic to general For CLINIC USER DELETE!!!!
+  let sqlCheck = "SELECT * FROM general WHERE user_email = ?";
+  sqlCheck = mysql.format(sqlCheck, [email]);
+  conn.query(sqlCheck, (err, result) => {
+    if (err) throw err;
+    if (result.length > 0) {
+      let sql = "DELETE FROM clinic WHERE user_email = ?";
+      sql = mysql.format(sql, [email]);
+
+      conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json({ message: "delete success" });
+      });
+    } else {
+      let sql = "DELETE FROM user WHERE email = ?"
+      sql = mysql.format(sql, [email]);
+
+      conn.query(sql, (err, result) => {
+        if (err) throw err;
+        res.status(200).json({ message: "delete success" });
+      });
+    }
+  });
+});

@@ -65,11 +65,11 @@ router.get("/searchemail/:email", (req, res) => {
 
 router.get("/searche/:email/:careerNo", (req, res) => {
   const email = req.params.email;
-  const name = req.params.careerNo;
-  console.log(email, name);
+  const careerNo = req.params.careerNo;
+  console.log(email, careerNo);
 
   let sql = "SELECT * FROM doctor WHERE user_email = ? AND careerNo = ?";
-  sql = mysql.format(sql, [email, `%${name}%`]); 
+  sql = mysql.format(sql, [email, careerNo]); 
 
   conn.query(sql, (err, result) => {
     if (err) {

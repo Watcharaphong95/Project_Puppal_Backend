@@ -63,13 +63,28 @@ router.get("/searchemail/:email", (req, res) => {
 });
 
 
-router.get("/searche/:email/:careerNo", (req, res) => {
+router.get("/searche/:email/:name", (req, res) => {
   const email = req.params.email;
-  const careerNo = req.params.careerNo;
-  console.log(email, careerNo);
+  const name = req.params.name;
+  console.log(email, name);
 
-  let sql = "SELECT * FROM doctor WHERE user_email = ? AND careerNo = ?";
-  sql = mysql.format(sql, [email, careerNo]); 
+  let sql = "SELECT * FROM doctor WHERE user_email = ? AND name LIKE ?";
+  sql = mysql.format(sql, [email, `%${name}%`]); 
+
+  conn.query(sql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    res.status(200).json(result);
+  });
+});
+
+router.get("/searcheCareer/:careerNo", (req, res) => {
+  const careerNo = req.params.careerNo;
+
+  let sql = "SELECT * FROM doctor WHERE careerNo = ?";
+  sql = mysql.format(sql, [careerNo]); 
 
   conn.query(sql, (err, result) => {
     if (err) {

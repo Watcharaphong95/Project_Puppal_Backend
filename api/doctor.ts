@@ -63,12 +63,12 @@ router.get("/searchemail/:email", (req, res) => {
 });
 
 
-router.get("/searche/:email/:name", (req, res) => {
+router.get("/searche/:email/:careerNo", (req, res) => {
   const email = req.params.email;
-  const name = req.params.name;
+  const name = req.params.careerNo;
   console.log(email, name);
 
-  let sql = "SELECT * FROM doctor WHERE user_email = ? AND name LIKE ?";
+  let sql = "SELECT * FROM doctor WHERE user_email = ? AND careerNo = ?";
   sql = mysql.format(sql, [email, `%${name}%`]); 
 
   conn.query(sql, (err, result) => {

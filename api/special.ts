@@ -62,12 +62,3 @@ router.delete("/:id", (req, res) => {
     res.status(200).json({ message: "ลบข้อมูลเรียบร้อย", deletedId: id });
   });
 });
-
-
-
-
-
-
-
-
-

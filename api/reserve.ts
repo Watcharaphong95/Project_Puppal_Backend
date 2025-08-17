@@ -247,6 +247,64 @@ router.post("/notify/clinicrefuse/clinic-request", async (req, res) => {
   }
 });
 
+router.post("/notify/cliniccancle/clinic-request", async (req, res) => {
+  const { clinicEmail, generalEmail, userName, date } = req.body;
+
+  try {
+    const weekday = dayjs(date).format("dddd");
+    const day = dayjs(date).format("D");
+    const month = dayjs(date).format("MMMM");
+    const year = dayjs(date).year() + 543;
+    const time = dayjs(date).format("HH:mm");
+    const thaiFullDate = `${weekday}ที่ ${day} ${month} ${year} เวลา ${time} น.`;
+
+    console.log("clinicEmail :", clinicEmail);
+
+    const sql = mysql.format(
+      "SELECT fcmToken FROM general WHERE user_email = ?",
+      [generalEmail]
+    );
+
+    conn.query(sql, async (err, results) => {
+      if (err)
+        return res.status(500).json({ message: "DB error", error: err });
+      if (results.length === 0 || !results[0].fcmToken)
+        return res.status(404).json({ message: "Clinic token not found" });
+
+      const token = results[0].fcmToken;
+
+      const title = `❌ คลินิก ${userName} ยกเลิกนัดฉีดวัคซีนของคุณ วันที่ ${thaiFullDate}`;
+      const body = `คลินิก ${userName} ยกเลิกนัดฉีดวัคซีนของคุณ`;
+
+      try {
+        const message = await sendFCMToken(token, title, body);
+
+        const notifyDoc = {
+          senderEmail: clinicEmail,
+          receiverEmail: generalEmail,
+          message,
+          createAt: new Date(),
+        };
+
+        await db.collection("generalNotifications").add(notifyDoc);
+
+        res.status(200).json({
+          message: "Notification sent and Firestore saved",
+        });
+      } catch (error) {
+        console.error("Error sending notification or saving Firestore:", error);
+        res.status(500).json({
+          message: "Notification or Firestore error",
+          error,
+        });
+      }
+    });
+  } catch (e) {
+    console.error("❌ Error formatting date:", e);
+    res.status(400).json({ message: "Invalid date format", error: e });
+  }
+});
+
 
 
 router.post("/notify/clinicaccept/clinic-request", async (req, res) => {
@@ -616,7 +674,7 @@ const getFCMToken = async (email: string): Promise<string | null> => {
       [email]
     );
 
-    conn.query(sql, (err, results: any[]) => {
+    conn.query(sql, (err: any, results: any[]) => {
       if (err) {
         console.error(`❌ Database error for ${email}:`, err);
         reject(err);

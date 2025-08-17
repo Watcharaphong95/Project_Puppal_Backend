@@ -6,8 +6,8 @@ import { log } from "firebase-functions/logger";
 
 export const router = express.Router();
 
-router.get("/",(req,res)=>{
-    let sql = "SELECT * FROM injectionRecord";
+router.get("/", (req, res) => {
+  let sql = "SELECT * FROM injectionRecord";
   conn.query(sql, (err, result) => {
     if (err) throw err;
     res.status(200).json(result);
@@ -42,7 +42,7 @@ router.get("/",(req,res)=>{
 
 // router.post("/", (req, res) => {
 //   console.log("Received body:", req.body);
-  
+
 
 //   const input = req.body[0]; // เพราะรับเป็น list
 
@@ -81,24 +81,24 @@ router.post("/", (req, res) => {
   // log(app.oldAppointment_aid,app.nextAppointment_aid);
   let sql =
     "INSERT INTO injectionRecord (oldAppointment_aid, nextAppointment_aid, clinic_email,doctorCareerNo ,vaccine, date, vaccine_label, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-  
+
   sql = mysql.format(sql, [
     app.oldAppointmentAid ?? null,
     app.nextAppointmentAid,
     app.clinicEmail,
     app.doctorCareerNo,
     app.vaccine,
-    formattedDate,      
+    formattedDate,
     app.vaccine_label,
-    app.type   
+    app.type
   ]);
 
-   console.log("SQL Query:", sql);
+  console.log("SQL Query:", sql);
   conn.query(sql, (err, result) => {
     if (err) {
       res.status(404).json({ message: err.sqlMessage });
     } else {
-      res.status(201).json({ aid: result.insertId }); 
+      res.status(201).json({ aid: result.insertId });
 
     }
   });
@@ -123,7 +123,7 @@ router.get("/:dogId/:date", (req, res) => {
   JOIN appointment ON appointment.aid = injectionRecord.nextAppointment_aid 
   WHERE appointment.dogId = ? AND DATE(injectionRecord.date) = ?
 `;
-log("SQL params:", dogId, date);
+  log("SQL params:", dogId, date);
 
   conn.query(mysql.format(sql, [dogId, date]), (err, result) => {
     if (err) {
@@ -138,28 +138,31 @@ log("SQL params:", dogId, date);
   });
 });
 
-router.get("/history/:dogId/:email", (req, res) => {
+router.get("/history/:dogId/:generalEmail/:clinicEmail", (req, res) => {
   const dogId = req.params.dogId;
-  const email = req.params.email;
+  const generalEmail = req.params.generalEmail;
+  const clinicEmail = req.params.clinicEmail;
 
- const sql = `
-  SELECT 
-    injectionRecord.oldAppointment_aid,
-    injectionRecord.nextAppointment_aid,
-    injectionRecord.clinic_email,
-    injectionRecord.doctorCareerNo,
-    injectionRecord.vaccine,
-    injectionRecord.date,
-    injectionRecord.vaccine_label,
-    injectionRecord.type
-  FROM injectionRecord 
-  LEFT JOIN appointment 
-    ON appointment.aid = injectionRecord.nextAppointment_aid 
-  WHERE (appointment.dogId = ? AND appointment.general_user_email = ?) 
-     OR injectionRecord.nextAppointment_aid IS NULL
-`;
+  const sql = `
+    SELECT 
+      injectionRecord.oldAppointment_aid,
+      injectionRecord.nextAppointment_aid,
+      injectionRecord.clinic_email,
+      injectionRecord.doctorCareerNo,
+      injectionRecord.vaccine,
+      injectionRecord.date,
+      injectionRecord.vaccine_label,
+      injectionRecord.type
+    FROM injectionRecord 
+    LEFT JOIN appointment 
+      ON appointment.aid = injectionRecord.nextAppointment_aid 
+    WHERE 
+      ((appointment.dogId = ? AND appointment.general_user_email = ?) 
+        OR injectionRecord.nextAppointment_aid IS NULL)
+      AND injectionRecord.clinic_email = ?
+  `;
 
-  conn.query(mysql.format(sql, [dogId, email]), (err, result) => {
+  conn.query(mysql.format(sql, [dogId, generalEmail, clinicEmail]), (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Database error", error: err });
     }
@@ -171,6 +174,54 @@ router.get("/history/:dogId/:email", (req, res) => {
     res.status(200).json({ data: result });
   });
 });
+
+router.get("/newhistory/:dogId/:day/:clinicEmail", (req, res) => {
+  const dogId = req.params.dogId;
+  const day = req.params.day; // 'YYYY-MM-DD'
+  const clinicEmail = req.params.clinicEmail;
+
+  const sql = `
+  SELECT 
+    injectionRecord.oldAppointment_aid,
+    injectionRecord.nextAppointment_aid,
+    injectionRecord.clinic_email,
+    injectionRecord.doctorCareerNo,
+    injectionRecord.vaccine,
+    CONVERT_TZ(injectionRecord.date, '+00:00', '+07:00') AS date, -- แปลงเป็นไทย
+    injectionRecord.vaccine_label,
+    injectionRecord.type
+  FROM injectionRecord 
+  LEFT JOIN appointment 
+    ON appointment.aid = injectionRecord.nextAppointment_aid 
+  WHERE 
+    injectionRecord.clinic_email = ?
+    AND injectionRecord.date >= ?
+    AND injectionRecord.date < DATE_ADD(?, INTERVAL 1 DAY)
+    AND (
+         appointment.dogId = ? 
+         OR injectionRecord.nextAppointment_aid IS NULL
+    )
+  ORDER BY injectionRecord.nextAppointment_aid DESC
+  LIMIT 1
+  `;
+
+  conn.query(mysql.format(sql, [clinicEmail, day, day, dogId]), (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "No injection records found" });
+    }
+
+    res.status(200).json({ data: result[0] });
+  });
+});
+
+
+
+
+
 
 
 

@@ -26,6 +26,27 @@ router.get("/", (req, res) => {
   });
 });
 
+router.get("/:id", (req, res) => {
+  const id = parseInt(req.params.id, 10); // แปลง string → int
+ 
+
+  const sql = "SELECT * FROM appointment WHERE aid = ?";
+  conn.query(sql, [id], (err, results) => {
+    if (err) {
+      console.error("❌ DB Error:", err);
+      return res.status(500).json({ error: "Database query failed" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    res.json(results[0]);
+  });
+});
+
+
+
 const queryAsync = (query: string, params: any[] = []): Promise<any[]> => {
   return new Promise((resolve, reject) => {
     conn.query(query, params, (err: any, results: any[]) => {
@@ -247,3 +268,5 @@ router.get("/latestdate/:aids/:email", (req, res) => {
     res.status(200).json({ data: result });
   });
 });
+
+

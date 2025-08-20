@@ -70,6 +70,44 @@ router.get("/", (req, res) => {
 //   });
 // });
 
+router.get("/nextAppointment/:aid", (req, res) => {
+  let aid = req.params.aid;
+  let sql = "SELECT * FROM appointment WHERE aid = ?";
+    sql = mysql.format(sql, [aid]);
+    conn.query(sql, (err, result) => {
+      if (err) throw err; 
+      res.status(200).json(result);
+    });
+})
+
+router.put("/nextAppointmentRemove/:aid", (req, res) => {
+  let aid = req.params.aid;
+  let sql = "UPDATE appointment SET date = null WHERE aid = ?";
+    sql = mysql.format(sql, [aid]);
+    conn.query(sql, (err, result) => {
+      if (err) throw err; 
+      res.status(200).json(result);
+    });
+})
+
+router.put("/nextAppointmentEdit/:aid", (req, res) => {
+  let aid = req.params.aid;
+  let { nextDate } = req.body;
+
+  if (!nextDate) {
+    res.status(400).json({ message: "nextDate is required" });
+  }
+
+  const sql = "UPDATE appointment SET date = ? WHERE aid = ?";
+  const formattedSql = mysql.format(sql, [nextDate, aid]);
+    conn.query(formattedSql, (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    res.status(200).json({ message: "Appointment updated", result });
+  });
+})
+
 router.post("/", (req, res) => {
   let app: ClinicinjectionRecordPost = req.body;
   let dateTemp = new Date(app.date);
@@ -174,6 +212,8 @@ router.get("/history/:dogId/:generalEmail/:clinicEmail", (req, res) => {
     res.status(200).json({ data: result });
   });
 });
+
+
 
 router.get("/newhistory/:dogId/:day/:clinicEmail", (req, res) => {
   const dogId = req.params.dogId;

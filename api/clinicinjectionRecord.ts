@@ -82,7 +82,7 @@ router.get("/nextAppointment/:aid", (req, res) => {
 
 router.put("/nextAppointmentRemove/:aid", (req, res) => {
   let aid = req.params.aid;
-  let sql = "UPDATE appointment SET date = null WHERE aid = ?";
+  let sql = "UPDATE appointment SET date = null, vaccine = 'ไม่มี' WHERE aid = ?";
     sql = mysql.format(sql, [aid]);
     conn.query(sql, (err, result) => {
       if (err) throw err; 

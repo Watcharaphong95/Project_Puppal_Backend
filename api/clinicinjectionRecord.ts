@@ -187,7 +187,7 @@ router.get("/newhistory/:dogId/:day/:clinicEmail", (req, res) => {
     injectionRecord.clinic_email,
     injectionRecord.doctorCareerNo,
     injectionRecord.vaccine,
-    CONVERT_TZ(injectionRecord.date, '+00:00', '+07:00') AS date, -- แปลงเป็นไทย
+    CONVERT_TZ(injectionRecord.date, '+00:00', '+07:00') AS date, 
     injectionRecord.vaccine_label,
     injectionRecord.type
   FROM injectionRecord 

@@ -70,6 +70,16 @@ router.get("/", (req, res) => {
 //   });
 // });
 
+router.get("/nextAppointment/:aid", (req, res) => {
+  let aid = req.params.aid;
+  let sql = "SELECT * FROM appointment WHERE aid = ?";
+    sql = mysql.format(sql, [aid]);
+    conn.query(sql, (err, result) => {
+      if (err) throw err; 
+      res.status(200).json(result);
+    });
+})
+
 router.post("/", (req, res) => {
   let app: ClinicinjectionRecordPost = req.body;
   let dateTemp = new Date(app.date);
@@ -175,15 +185,7 @@ router.get("/history/:dogId/:generalEmail/:clinicEmail", (req, res) => {
   });
 });
 
-router.get("/nextAppointment/:aid", (req, res) => {
-  let aid = req.params.aid;
-  let sql = "SELECT * FROM appointment WHERE aid = ?";
-    sql = mysql.format(sql, [aid]);
-    conn.query(sql, (err, result) => {
-      if (err) throw err;
-      res.status(200).json(result);
-    });
-})
+
 
 router.get("/newhistory/:dogId/:day/:clinicEmail", (req, res) => {
   const dogId = req.params.dogId;

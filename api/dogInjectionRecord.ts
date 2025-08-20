@@ -103,9 +103,6 @@ router.get("/dogId/:id", (req, res) => {
   });
 });
 
-
-
-
 router.get("/all/:email", (req, res) => {
   let email = req.params.email;
   let sql =
